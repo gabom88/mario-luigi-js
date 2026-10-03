@@ -117,24 +117,70 @@ function scheduleTimer() {
   }, delay);
 }
 
-// Monitor refresh measurement for the smooth clock
+// Smooth clock: decides on every monitor refresh whether a game frame runs.
+//
+// Phones often change their refresh rate on the fly (60 / 90 / 120 Hz, e.g.
+// when the screen is touched), so the rate is measured continuously (median
+// of the last frames) and the game speed is capped with the real clock:
+//  - if the refresh divided by a whole number is 55..72 Hz (60, 120, 144,
+//    165 Hz...) a game frame runs every k-th refresh: perfectly smooth;
+//  - otherwise (75, 90, 100 Hz...) game frames are spread over the
+//    refreshes to give exactly 70 per second;
+//  - in any case never more than one game frame per 9.5 ms (~105 per s,
+//    a safety net: the two rules above already give 55..72 per second).
+const MIN_TICK_MS = 9.5;
+const deltas = [];
 let lastRaf = 0;
-let avgInterval = 1000 / 60;
-let vsyncCount = 0;
+let lastTick = -1e9;
+let frameIndex = 0;
+let credit = 0;
+
+function medianInterval() {
+  if (!deltas.length) return 1000 / 60;
+  const s = deltas.slice().sort((x, y) => x - y);
+  return s[s.length >> 1];
+}
+
+// Exported for tests: t = timestamp of the refresh (ms). Returns true when a
+// game frame must run.
+export function smoothClockStep(t) {
+  const d = lastRaf ? t - lastRaf : 1000 / 60;
+  lastRaf = t;
+  if (d > 2 && d < 100) {
+    deltas.push(d);
+    if (deltas.length > 24) deltas.shift();
+  }
+  const hz = 1000 / medianInterval();
+  let k = 0;
+  for (let j = 1; j <= 4; j++) {
+    const r = hz / j;
+    if (r >= 55 && r <= 72.5) {
+      k = j;
+      break;
+    }
+  }
+  const allowed = t - lastTick >= MIN_TICK_MS; // hard speed cap
+  let tick = false;
+  if (k) {
+    frameIndex = (frameIndex + 1) % k;
+    tick = frameIndex === 0 && allowed;
+    credit = 0;
+  } else {
+    credit = Math.min(2, credit + (Math.min(d, 100) * RETRACE_HZ) / 1000);
+    if (credit >= 1 && allowed) {
+      credit -= 1;
+      tick = true;
+    }
+  }
+  if (tick) lastTick = t;
+  return tick;
+}
 
 function rafLoop(t) {
-  if (lastRaf) {
-    const d = t - lastRaf;
-    if (d > 2 && d < 50) avgInterval += (d - avgInterval) * 0.05;
-  }
-  lastRaf = t;
   if (clockMode === 'smooth' && !turboClock && waiters.length) {
-    const perTick = Math.max(1, Math.round(1000 / avgInterval / RETRACE_HZ));
-    vsyncCount++;
-    if (vsyncCount >= perTick) {
-      vsyncCount = 0;
-      retraceTick();
-    }
+    if (smoothClockStep(t)) retraceTick();
+  } else {
+    lastRaf = t;
   }
   if (presentHook) presentHook();
   requestAnimationFrame(rafLoop);
