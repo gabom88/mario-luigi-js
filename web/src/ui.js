@@ -4,6 +4,7 @@ import * as KB from './keyboard.js';
 import * as VGA from './vga256.js';
 import { B } from './buffers.js';
 import { extras, applyExtras, toggleFullscreen } from './extras.js';
+import { initEaster } from './easter.js';
 
 const STORE_KEY = 'mario-luigi-controls';
 // Version 2 changed the default keys (WASD, N, M): older saved key
@@ -248,6 +249,7 @@ function buildTouch() {
 
 function applyTouch() {
   const t = settings.touch;
+  document.body.classList.toggle('touch-on', t.enabled);
   touchLayer.style.display = t.enabled ? '' : 'none';
   touchLayer.style.setProperty('--alpha', t.alpha);
   touchLayer.style.setProperty('--dpad-x', `${t.dpad.x}vw`);
@@ -475,6 +477,12 @@ export function initUI(playCallback, uiHooks = {}) {
   }
   KB.setBindings(settings.bindings);
   buildTouch();
+  initEaster($('easter'));
+  // The touch preview would cover the easter egg at the bottom of the panel
+  new IntersectionObserver((entries) => {
+    const seen = entries.some((e) => e.isIntersecting);
+    touchLayer.classList.toggle('egg-view', seen);
+  }, { threshold: 0.25 }).observe($('easter'));
 
   renderBindings();
   $('reset-keys').addEventListener('click', () => {

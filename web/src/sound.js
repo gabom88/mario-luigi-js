@@ -12,6 +12,30 @@ let gain = null;
 let current = 0;
 let enhanced = false;
 
+// Audio timeline. The game switches the speaker on and off once per frame
+// (about 14 ms). On phones ctx.currentTime advances in big steps (20-40 ms),
+// so scheduling at "currentTime" put the on and off of a note at the same
+// instant and the note was never heard. Events are placed on a timeline
+// driven by the real clock instead, slightly in the future.
+const LOOKAHEAD = 0.05;
+let audioBase = 0;
+let perfBase = 0;
+
+let lastWhen = 0;
+
+function when() {
+  let t = audioBase + (performance.now() - perfBase) / 1000 + LOOKAHEAD;
+  const now = ctx.currentTime;
+  if (t < now + 0.005 || t > now + 0.25) { // drifted: resynchronise
+    audioBase = now;
+    perfBase = performance.now();
+    t = now + LOOKAHEAD;
+  }
+  // never schedule before an earlier event (keeps on/off in order)
+  lastWhen = Math.max(t, lastWhen);
+  return lastWhen;
+}
+
 // enhanced mode
 let bus = null;
 let voices = [];
@@ -20,7 +44,7 @@ let silent = true;
 
 export function setEnhancedSound(v) {
   enhanced = !!v;
-  if (gain && ctx) gain.gain.setValueAtTime(0, ctx.currentTime);
+  if (gain && ctx) gain.gain.setValueAtTime(0, when());
   current = 0;
 }
 
@@ -32,6 +56,8 @@ export function initAudio() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return;
   ctx = new AC();
+  audioBase = ctx.currentTime;
+  perfBase = performance.now();
 
   // original speaker
   gain = ctx.createGain();
@@ -67,7 +93,7 @@ export function initAudio() {
 }
 
 function playNote(freq) {
-  const t = ctx.currentTime;
+  const t = when();
   const o = ctx.createOscillator();
   // a pulse-ish timbre: square for low notes, triangle for high pitches
   o.type = freq < 700 ? 'square' : 'triangle';
@@ -100,9 +126,9 @@ export function Sound(freq) {
     silent = false;
     return;
   }
-  const t = ctx.currentTime;
+  const t = when();
   osc.frequency.setValueAtTime(Math.min(freq, 20000), t);
-  if (current === 0) gain.gain.setValueAtTime(0.06, t);
+  gain.gain.setValueAtTime(0.06, t);
   current = freq;
 }
 
@@ -113,6 +139,6 @@ export function NoSound() {
     return;
   }
   if (current === 0) return;
-  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.setValueAtTime(0, when());
   current = 0;
 }

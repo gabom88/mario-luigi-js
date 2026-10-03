@@ -189,8 +189,25 @@
     .hint { font-size: 0.8rem !important; margin-top: 6px !important; }
     .switch { display: flex; gap: 10px; align-items: center; cursor: pointer; font-size: 0.95rem; }
     .switch input { width: 18px; height: 18px; accent-color: #e0362c; flex: none; }
-    .switch small { color: #8b8e99; font-size: 0.78rem; margin-left: auto; text-align: right; }
+    .switch small { color: #8b8e99; font-size: 0.78rem; }
+    .extras .switch { flex-wrap: wrap; row-gap: 2px; }
+    .extras .switch small { flex-basis: 100%; margin-left: 28px; }
     .extras { display: grid; gap: 10px; }
+    #scroll-space { height: 0; }
+    body.touch-on #scroll-space { height: 55vh; }
+    #easter { margin-top: 28px; display: flex; justify-content: center; }
+    canvas.easter {
+      width: min(100%, 384px);
+      image-rendering: pixelated;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .egg-credit {
+      text-align: center;
+      font-size: 0.72rem !important;
+      color: #5f6270 !important;
+      margin-top: 6px !important;
+    }
     .sliders {
       display: grid;
       grid-template-columns: auto 1fr 3ch;
@@ -253,6 +270,7 @@
     }
     #touch.preview { z-index: 30; }
     #touch.preview * { pointer-events: none !important; }
+    #touch.preview.egg-view { visibility: hidden; }
     .dpad, .ab, .sys button { pointer-events: auto; touch-action: none; }
     .dpad {
       position: absolute;
@@ -438,6 +456,11 @@
           <button id="reset-touch" class="secondary" type="button">Restablecer posición</button>
         </div>
       </div>
+
+      <!-- extra room so the sliders can be scrolled above the touch controls -->
+      <div id="scroll-space" aria-hidden="true"></div>
+      <div id="easter"></div>
+      <p class="egg-credit">Mario &amp; Luigi &middot; Mike Wiering, 1994</p>
     </div>
   </div>
   <script type="module" src="src/main.js"></script>
