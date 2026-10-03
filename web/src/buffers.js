@@ -38,7 +38,25 @@ export const dmDownOutOfPipe = 4;
 export const dmDead = 5;
 
 // Character sets used for collision detection
-export const canHoldYou = (c) => c <= 13 || (c >= 0x30 && c <= 0x5A); // #0..#13, '0'..'Z'
+// #0..#13, '0'..'Z' (original) plus the extra terrains of the editor:
+// sources $B2..$B5 and their tiles $91..$9D (terrain 2) and $A0..$AC (3)
+export const canHoldYou = (c) => c <= 13 || (c >= 0x30 && c <= 0x5A)
+  || (c >= 0x91 && c <= 0x9D) || (c >= 0xA0 && c <= 0xAC) || (c >= 0xB2 && c <= 0xB5);
+
+// Extra terrains (not in the original game): two source codes each, like
+// A/B, drawn with the wall set loaded from WallType2 / WallType3.
+// Pipe codes (cell above the left half of a pipe mouth):
+//  $E0..$E7 original ($E0 same area, $E1 other area, $E7 exit level)
+//  $C0..$C7 go to zone 1..8 (editor levels)
+//  $D1..$D7 warp: leave the level and skip N-1 levels (like SMB warp zones)
+export const isPipeEntry = (c) => (c >= 0xE0 && c <= 0xE7) || (c >= 0xC0 && c <= 0xC7) || (c >= 0xD1 && c <= 0xD7);
+// any pipe code a pipe can be found by (entries, $E8..$EF pairs/arrivals)
+export const isPipeCode = (c) => (c >= 0xE0 && c <= 0xEF) || (c >= 0xC0 && c <= 0xC7) || (c >= 0xD1 && c <= 0xD7);
+
+export const EXTRA_TERRAINS = [
+  { codes: [0xB2, 0xB3], base: 0x90, set: 2 },
+  { codes: [0xB4, 0xB5], base: 0x9F, set: 3 },
+];
 export const canStandOn = (c) => (c >= 14 && c <= 16) || (c >= 0x61 && c <= 0x66); // #14..#16, 'a'..'f'
 export const isHidden = (c) => c === 0x24; // '$'
 
@@ -129,6 +147,7 @@ export const B = {
   YView: 0,
   LastXView: [0, 0],
   Demo: 0,
+  Warp: 0, // levels to advance after a warp pipe ($D1..$D7)
   TextCounter: 0,
   LavaCounter: 0,
 };

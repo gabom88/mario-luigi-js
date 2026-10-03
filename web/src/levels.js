@@ -21,6 +21,7 @@ export const OPTION_FIELDS = [
 ];
 
 export const MAX_WIDTH = 600;
+export const MAX_ZONES = 8;
 export const MIN_WIDTH = 17;
 
 const SP = 0x20;
@@ -49,11 +50,13 @@ export function newArea(width = 60, options = null) {
     cells[x * NV + NV - 1] = 0x41; // 'A' ground
     cells[x * NV + NV - 2] = 0x41;
   }
-  return {
-    width,
-    cells,
-    options: cleanOptions(options || optionsFromBytes(RAW.OPTIONS_6A)),
-  };
+  const opt = cleanOptions(options || optionsFromBytes(RAW.OPTIONS_6A));
+  // terrains 2 and 3 of the editor: sand and brown by default
+  if (!options) {
+    opt.WallType2 = 1;
+    opt.WallType3 = 3;
+  }
+  return { width, cells, options: opt };
 }
 
 // map: engine map bytes (column by column, bottom row first, #0 at the end)
@@ -166,7 +169,7 @@ export function serialize(level) {
 export function deserialize(obj) {
   if (!obj || obj.format !== FORMAT || !Array.isArray(obj.areas) || !obj.areas[0])
     throw new Error('No es un nivel de Mario & Luigi.');
-  const areas = obj.areas.slice(0, 2).map((a) => {
+  const areas = obj.areas.slice(0, MAX_ZONES).map((a) => {
     if (!a) return null;
     const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, a.width | 0));
     if (!Array.isArray(a.rows) || a.rows.length !== NV) throw new Error('Filas incorrectas en el nivel.');
@@ -279,6 +282,12 @@ export function setPlaytest(level) {
 export function getPlaytest() {
   const d = readJSON(TEST_KEY, null);
   return d ? deserialize(d) : null;
+}
+
+// All zones in engine format (for setZones in play.js)
+export function zonesFor(level) {
+  const main = level.areas[0];
+  return level.areas.map((a) => areaToEngine(a || main));
 }
 
 // Engine arguments for PlayWorld: [Map1, Opt1, Opt1b, Map2, Opt2, Opt2b]

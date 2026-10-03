@@ -70,6 +70,9 @@
     }
     #top .sep { width: 1px; height: 24px; background: var(--line); margin: 0 2px; }
     #level-name { width: 170px; font-weight: 600; }
+    #zones { display: inline-flex; gap: 3px; align-items: center; }
+    #zones button { padding: 5px 7px; min-width: 30px; }
+    #theme { max-width: 150px; }
     #dirty { color: var(--sel); font-size: 18px; line-height: 1; }
     #side {
       grid-area: side;
@@ -263,8 +266,10 @@
       <button id="btn-zoom-in" title="Acercar (+)">＋🔍</button>
       <button id="btn-grid" title="Cuadrícula (G)">#</button>
       <span class="sep"></span>
-      <button id="btn-area0" title="Área principal"><span class="lbl">Área </span>1</button>
-      <button id="btn-area1" title="Área 2 (a la que se llega por tubería)"><span class="lbl">Área </span>2</button>
+      <span id="zones" title="Zonas del nivel (se conectan con tuberías)"></span>
+      <select id="theme" title="Tema: el cielo, el suelo y los colores de un escenario">
+        <option value="">🎨 Tema…</option>
+      </select>
       <span class="sep"></span>
       <button id="btn-options" title="Opciones del nivel: cielo, suelo, colores, tamaño">⚙<span class="lbl"> Opciones</span></button>
       <button id="btn-export" title="Exportar / importar">⇅<span class="lbl"> Archivo</span></button>
@@ -311,8 +316,8 @@
   </div></dialog>
 
   <dialog id="dlg-options"><div class="dlg">
-    <h2>Opciones del área</h2>
-    <p class="hint">Cada área (1 y 2) tiene sus propias opciones. «Copiar aspecto» toma el cielo, el suelo y los colores de un nivel existente.
+    <h2>Opciones de la zona</h2>
+    <p class="hint">Cada zona tiene sus propias opciones. «Copiar aspecto» toma el cielo, el suelo y los colores de un nivel existente.
       Las colinas y montañas del fondo se mueven con el scroll (parallax), así que solo se ven al <b>probar</b> el nivel.
       Los colores son el primero de una rampa de 8 tonos de la paleta del juego.</p>
     <div class="form" id="opt-form"></div>
@@ -322,10 +327,26 @@
       <div><input id="opt-width" type="number" min="17" max="600"> <button id="opt-width-apply">Aplicar</button></div>
       <label>Columna en el cursor</label>
       <div><button id="col-insert">Insertar columna</button> <button id="col-delete">Borrar columna</button></div>
-      <label>Área 2</label>
-      <div><button id="area2-create">Crear área 2</button> <button id="area2-delete">Eliminar área 2</button></div>
+      <label>Zona</label>
+      <div><button id="zone-delete">Eliminar esta zona</button></div>
     </div>
     <div class="actions"><button data-close>Cerrar</button></div>
+  </div></dialog>
+
+  <dialog id="dlg-link"><div class="dlg">
+    <h2>Enlace de tubería</h2>
+    <p class="hint" id="link-where"></p>
+    <div class="form">
+      <label for="link-dest">Al entrar lleva a</label>
+      <select id="link-dest"></select>
+      <label for="link-both">Ida y vuelta</label>
+      <div><input id="link-both" type="checkbox" checked> <span class="hint">se puede volver entrando por la tubería de llegada</span></div>
+    </div>
+    <p class="hint" id="link-help"></p>
+    <div class="actions">
+      <button data-close>Cancelar</button>
+      <button id="link-ok" class="primary">Aceptar</button>
+    </div>
   </div></dialog>
 
   <dialog id="dlg-file"><div class="dlg">

@@ -2,7 +2,7 @@
 
 import * as VGA from './vga256.js';
 import {
-  B, W, H, NH, NV, WorldMap, ReadWorld, Swap, InitLevelScore, Beep,
+  B, W, H, NH, NV, WorldMap, SaveWorldMap, ReadWorld, Swap, InitLevelScore, Beep, isPipeCode,
   BeeperOn, BeeperOff, PlayerName, mdSmall, dmNoDemo,
 } from './buffers.js';
 import { PL, InitPlayer, DrawPlayer, ErasePlayer, DoDemo, MovePlayer } from './players.js';
@@ -37,8 +37,20 @@ export const PS = {
 
 let CheatsUsed = 0;
 
+// Zones of a level made with the editor: [{ map, options }], zone 0 and 1
+// are Map1 and Map2 of PlayWorld. Set before calling PlayWorld.
+let pendingZones = null;
+export function setZones(zones) {
+  pendingZones = zones;
+}
+
 export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Player) {
   let result = false;
+  const zones = pendingZones;
+  pendingZones = null;
+  let curZone = 0;
+  const zoneState = [];
+  B.Warp = 0;
   K.Key = 0;
 
   VGA.SetYOffset(VGA.YBASE);
@@ -131,7 +143,7 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
       for (let j = 0; j <= NH - 1; j++)
         if (i !== PL.MapX || j !== PL.MapY) {
           const c = WorldMap.get(i, j);
-          if (c >= 0xE0 && c <= 0xEF && WorldMap.get(i + 1, j) === PL.PipeCode[1]) {
+          if (isPipeCode(c) && WorldMap.get(i + 1, j) === PL.PipeCode[1]) {
             PL.MapX = i;
             PL.MapY = j;
             B.XView = (i - (NH >> 1) + 1) * W;
@@ -140,6 +152,29 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
             return;
           }
         }
+  }
+
+  // Moves to another zone keeping the state of the one left (collected
+  // coins, broken blocks...), like the original does with its two areas.
+  function gotoZone(k) {
+    if (k === curZone) return;
+    if (k <= 1 && curZone <= 1) {
+      Swap();
+      curZone = k;
+      return;
+    }
+    const save = (n, wb, opt) => { zoneState[n] = { mem: wb.mem.slice(), opt: { ...opt } }; };
+    save(curZone, WorldMap, B.Options);
+    if (curZone <= 1) save(1 - curZone, SaveWorldMap, B.SaveOptions);
+    if (zoneState[k]) {
+      WorldMap.mem.set(zoneState[k].mem);
+      B.Options = { ...zoneState[k].opt };
+    } else ReadWorld(zones[k].map, WorldMap, zones[k].options);
+    if (k <= 1 && zoneState[1 - k]) {
+      SaveWorldMap.mem.set(zoneState[1 - k].mem);
+      B.SaveOptions = { ...zoneState[1 - k].opt };
+    }
+    curZone = k;
   }
 
   function WriteTotalScore() {
@@ -492,13 +527,31 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
             await delay(100);
             break;
           case 0xE1:
-            Swap();
+            if (curZone <= 1) {
+              Swap();
+              curZone = 1 - curZone;
+            } else {
+              gotoZone(0);
+              PL.MapX = -1; // search the whole map (another zone)
+            }
             FindPipeExit();
             break;
           case 0xE7:
             B.GameDone = true;
             result = true;
             break;
+          default: {
+            const code = PL.PipeCode[0];
+            if (code >= 0xD1 && code <= 0xD7) { // warp to a later level
+              B.GameDone = true;
+              result = true;
+            } else if (code >= 0xC0 && code <= 0xC7 && zones && code - 0xC0 < zones.length) {
+              const before = curZone;
+              gotoZone(code - 0xC0);
+              if (curZone !== before) PL.MapX = -1;
+              FindPipeExit();
+            } else FindPipeExit(); // unknown zone: behave like $E0
+          }
         }
 
         InitPlayer(PL.MapX * W + (W >> 1), (PL.MapY - 1) * H, Player);
@@ -508,8 +561,12 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
 
         for (let i = 0; i <= VGA.MAX_PAGE; i++) B.LastXView[i] = B.XView;
 
-        if (PL.PipeCode[0] === 0xE0) { next = 'restart'; break; }
-        if (PL.PipeCode[0] === 0xE1) { next = 'build'; break; }
+        const pc = PL.PipeCode[0];
+        if (pc === 0xE0 || (pc >= 0xC0 && pc <= 0xC7 && !(zones && pc - 0xC0 < zones.length))) {
+          next = 'restart';
+          break;
+        }
+        if (pc === 0xE1 || (pc >= 0xC0 && pc <= 0xC7)) { next = 'build'; break; }
       }
     } while (!(B.GameDone || B.QuitGame));
 

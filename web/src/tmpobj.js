@@ -22,8 +22,9 @@ const CoinDelay = 12;
 const MaxCoinYVel = 6;
 const HitTime = 4;
 
-const MaxTempObj = 20;
-const MaxRemove = 10;
+// (original: 20 and 10) more room for levels made with the editor
+const MaxTempObj = 60;
+const MaxRemove = 40;
 
 const TempObj = Array.from({ length: MaxTempObj + 1 }, () => ({
   Alive: false,

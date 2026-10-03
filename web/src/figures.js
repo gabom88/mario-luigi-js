@@ -1,7 +1,7 @@
 // Port of FIGURES.PAS: level tiles, sky and world construction.
 
 import * as VGA from './vga256.js';
-import { B, W, H, NV, WorldMap, canHoldYou } from './buffers.js';
+import { B, W, H, NV, WorldMap, canHoldYou, EXTRA_TERRAINS } from './buffers.js';
 import { ChangePalette } from './palettes.js';
 import { BG, DrawBricks, LargeBricks, Pillar, Windows, SmoothFill } from './backgr.js';
 import { RAW } from './data.js';
@@ -98,6 +98,9 @@ const WALLS = { 0: 'GREEN', 1: 'SAND', 3: 'BROWN', 4: 'GRASS', 5: 'DES' };
 
 function InitWall(N, WallType) {
   const L = FigList[N];
+  // Sets 2 and 3 are only drawn by the extra terrains of the editor; the
+  // original levels give them brick types (100+) that have no tiles here.
+  if (N > 1 && !WALLS[WallType] && WallType !== 2) WallType = 0;
   const slots = [1, 2, 4, 5, 10];
   if (WALLS[WallType]) {
     const name = WALLS[WallType];
@@ -279,7 +282,15 @@ export function Redraw(X, Y) {
   const draw = (img) => VGA.DrawImage(XPos, YPos, W, H, img);
   const design = B.Options.Design;
 
-  if (C >= 1 && C <= 26) {
+  const extra = EXTRA_TERRAINS.find((t) => C > t.base && C <= t.base + 13)
+    || EXTRA_TERRAINS.find((t) => t.codes.includes(C));
+  if (extra) {
+    // extra terrain tile: edges and corners are drawn over the sky
+    const n = extra.codes.includes(C) ? 5 : C - extra.base;
+    const img = FigList[extra.set][n];
+    if ([1, 3, 4, 6, 7, 9].includes(n)) VGA.DrawImage(XPos, YPos, W, H, img);
+    else VGA.PutImage(XPos, YPos, W, H, img);
+  } else if (C >= 1 && C <= 26) {
     if (C > 13) C -= 13;
     else if (at(-1, 0) >= 14 && at(-1, 0) <= 26) {
       if (C === 1 || C === 4 || C === 7)
@@ -505,6 +516,41 @@ export function BuildWorld() {
         break;
     }
   }
+  // Extra terrains (editor): same edge rules as A/B, each with its own tiles
+  for (const t of EXTRA_TERRAINS) {
+    for (let i = 0; i <= o.XSize - 1; i++)
+      for (let j = 0; j <= NV - 1; j++) {
+        const C = WorldMap.get(i, j);
+        if (!t.codes.includes(C)) continue;
+        const inCh = (c) => c === C || (c > t.base && c <= t.base + 13);
+        const inChLeft = (c) => inCh(c) && c !== t.base + 3 && c !== t.base + 6 && c !== t.base + 9;
+        const at = (x, y) => WorldMap.get(x, y);
+        const A = 1 - ((inCh(at(i, j - 1)) || j === 0) ? 1 : 0);
+        const Bv = 2 * (!((j === NV - 1) || inCh(at(i, j + 1))) ? 1 : 0);
+        const L = 4 * (!((i === 0) || inChLeft(at(i - 1, j))) ? 1 : 0);
+        const R = 8 * (!((i === o.XSize - 1) || inCh(at(i + 1, j))) ? 1 : 0);
+        const set = (v) => WorldMap.set(i, j, t.base + v);
+        let v = 5;
+        switch (A + Bv + L + R) {
+          case 0:
+            if (i > 0 && j > 0 && !inCh(at(i - 1, j - 1))) v = 10;
+            else if (i < o.XSize - 1 && j > 0 && !inCh(at(i + 1, j - 1))) v = 11;
+            else if (i > 0 && j < NV - 1 && !inCh(at(i - 1, j + 1))) v = 12;
+            else if (i < o.XSize - 1 && j < NV - 1 && !inCh(at(i + 1, j + 1))) v = 13;
+            break;
+          case 1: v = 2; break;
+          case 2: v = 8; break;
+          case 4: v = 4; break;
+          case 8: v = 6; break;
+          case 5: v = 1; break;
+          case 6: v = 7; break;
+          case 9: v = 3; break;
+          case 10: v = 9; break;
+        }
+        set(v);
+      }
+  }
+
   ConvertGrass(RAW.GRASS1000, RAW.GRASS1001, RAW.GRASS1002);
   ConvertGrass(RAW.GRASS2000, RAW.GRASS2001, RAW.GRASS2002);
   ConvertGrass(RAW.GRASS3000, RAW.GRASS3002, RAW.GRASS3001);

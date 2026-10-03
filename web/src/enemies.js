@@ -85,7 +85,8 @@ const Grounded = 0;
 const Falling = 1;
 
 const MaxEnemies = 11;
-const MaxEnemiesAtOnce = 25;
+// The original allowed 25 enemies at once; editor levels may have many more
+const MaxEnemiesAtOnce = 150;
 
 const newImage = () => new Uint8Array(W * H);
 const EnemyPictures = Array.from({ length: MaxEnemies + 1 }, () => [newImage(), newImage()]);

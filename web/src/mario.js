@@ -4,7 +4,7 @@ import * as VGA from './vga256.js';
 import {
   B, W, H, NH, NV, plMario, plLuigi, mdSmall, newGameData, BeeperOn, BeeperOff,
 } from './buffers.js';
-import { PS, PlayWorld } from './play.js';
+import { PS, PlayWorld, setZones } from './play.js';
 import { InitPlayerFigures, DrawPlayer } from './players.js';
 import { E, InitEnemyFigures } from './enemies.js';
 import { InitBackGr, DrawBackGrMap } from './backgr.js';
@@ -19,7 +19,7 @@ import { RAW } from './data.js';
 import { randomize } from './pascal.js';
 import { extras } from './extras.js';
 import { SMB_LEVELS, smbLevel } from './smb.js';
-import { listMyLevels, getMyLevel, playArgs } from './levels.js';
+import { listMyLevels, getMyLevel, playArgs, zonesFor } from './levels.js';
 
 const NUM_LEV = 6;
 const LAST_LEV = 2 * NUM_LEV - 1;
@@ -520,6 +520,7 @@ async function playSpecial(w, player) {
   if (w.kind === 'my') {
     const level = getMyLevel(w.id);
     if (!level) return false;
+    setZones(zonesFor(level));
     return PlayWorld('x', 'E', ...playArgs(level), player);
   }
   if (w.kind === 'title') {
@@ -548,6 +549,7 @@ async function runTest(level) {
   const args = playArgs(level);
   for (;;) {
     await ShowPlayerName(plMario);
+    setZones(zonesFor(level));
     const passed = await PlayWorld('x', 'E', ...args, plMario);
     if (passed || B.QuitGame || d.Lives[plMario] <= 0) break;
   }
@@ -623,7 +625,9 @@ export async function Main(testLevel = null) {
           else if (lev >= 0 && lev < LEVELS.length) Passed = await playLevel(lev, CurPlayer);
           else EndGame = true;
 
-          if (Passed) d.Progress[CurPlayer]++;
+          // a warp pipe ($D1..$D7) advances several levels at once
+          if (Passed) d.Progress[CurPlayer] += Math.max(1, B.Warp || 1);
+          B.Warp = 0;
           if (GameNumber !== -1) { // keep the saved game up to date
             Config.Games[GameNumber] = cloneData(d);
             WriteConfig();

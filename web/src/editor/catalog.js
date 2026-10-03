@@ -38,6 +38,10 @@ export const GROUPS = [
       { code: ch('B'), name: 'Terreno B', sprite: () => FigList[1][2], help: 'Igual que A, pero no se une con A: sirve para separar dos zonas de suelo.' },
       { code: ch('C'), name: 'Terreno C', sprite: () => FigList[1][2], help: 'Capa delantera: se une con A, B y D.' },
       { code: ch('D'), name: 'Terreno D', sprite: () => FigList[1][2], help: 'Como C, para separar dos zonas.' },
+      { code: 0xB2, name: 'Terreno 2', sprite: () => FigList[2][2], help: 'Otro tipo de suelo en el mismo nivel: usa el «Suelo 2» de las opciones. Sus bordes son independientes del terreno A.' },
+      { code: 0xB3, name: 'Terreno 2 (separado)', sprite: () => FigList[2][2], help: 'Como Terreno 2, pero no se une con él.' },
+      { code: 0xB4, name: 'Terreno 3', sprite: () => FigList[3][2], help: 'Un tercer tipo de suelo: usa el «Suelo 3» de las opciones.' },
+      { code: 0xB5, name: 'Terreno 3 (separado)', sprite: () => FigList[3][2], help: 'Como Terreno 3, pero no se une con él.' },
       { code: ch('*'), name: 'Moneda', sprite: 'COIN000' },
     ],
   },
@@ -62,9 +66,29 @@ export const GROUPS = [
       { code: ch('1'), name: 'Boca derecha', sprite: 'PIPE001' },
       { code: ch('2'), name: 'Tubo izquierdo', sprite: 'PIPE002' },
       { code: ch('3'), name: 'Tubo derecho', sprite: 'PIPE003' },
-      { code: 0xE7, name: 'Salida del nivel', overlay: true, badge: 'FIN', help: 'En las DOS celdas sobre la boca de una tubería: al entrar (abajo) se supera el nivel.' },
-      { code: 0xE0, name: 'Ir a otra tubería', overlay: true, badge: '→', help: 'Celda sobre la boca IZQUIERDA: lleva a la tubería de esta área cuyo código derecho sea el mismo (pareja). En un bloque ? significa champiñón.' },
-      { code: 0xE1, name: 'Ir a la otra área', overlay: true, badge: '⇄', help: 'Celda sobre la boca IZQUIERDA: lleva al área 2 (o vuelve), a la tubería con el mismo código derecho. En un bloque ? significa vida extra.' },
+      { code: 0xE7, name: 'Salida del nivel', overlay: true, badge: 'FIN', help: 'En las DOS celdas sobre la boca de una tubería: al entrar (abajo) se supera el nivel. Lo más fácil: herramienta 🔗 Enlace.' },
+    ],
+  },
+  {
+    name: 'Enlaces de tubería (avanzado)',
+    items: [
+      { code: 0xE0, name: 'Ir a otra tubería de esta zona', overlay: true, badge: '→', help: 'Celda sobre la boca IZQUIERDA. La derecha lleva el número de pareja; se sale por la otra tubería con el mismo número. Más fácil: herramienta 🔗 Enlace. (En un bloque ? significa champiñón.)' },
+      { code: 0xE1, name: 'Ir a la otra área (1⇄2)', overlay: true, badge: '⇄', help: 'Código del juego original para cambiar entre la zona 1 y la 2. (En un bloque ? significa vida extra.)' },
+      ...[0, 1, 2, 3, 4, 5, 6, 7].map((n) => ({
+        code: 0xC0 + n,
+        name: `Ir a la zona ${n + 1}`,
+        overlay: true,
+        badge: `Z${n + 1}`,
+        help: `Celda sobre la boca IZQUIERDA: lleva a la zona ${n + 1}, a la tubería con el mismo número de pareja.`,
+      })),
+      ...[1, 2, 3, 4, 5, 6, 7].map((n) => ({
+        code: 0xD0 + n,
+        name: n === 1 ? 'Warp: siguiente nivel' : `Warp: avanzar ${n} niveles`,
+        overlay: true,
+        badge: `W${n}`,
+        help: `Como la salida, pero en el modo de juego avanza ${n} nivel${n > 1 ? 'es' : ''} (warp zone). En niveles sueltos termina el nivel.`,
+      })),
+      { code: 0xEE, name: 'Solo llegada', overlay: true, badge: '◎', help: 'Celda sobre la boca IZQUIERDA de una tubería de llegada por la que no se puede entrar.' },
       ...[0, 1, 2, 3, 4, 5, 6, 7].map((n) => ({
         code: 0xE8 + n,
         name: `Pareja ${n + 1}`,
@@ -143,10 +167,11 @@ export function itemFor(code) {
 export function overlayItem(code, below) {
   if (code === 0xE0 || code === 0xE1) {
     const pipe = below === ch('0') || below === ch('1');
-    const group = GROUPS.find((g) => g.name === (pipe ? 'Tuberías' : 'Contenido de ?'));
+    const group = GROUPS.find((g) => g.name === (pipe ? 'Enlaces de tubería (avanzado)' : 'Contenido de ?'));
     return group.items.find((i) => i.code === code);
   }
-  if (code >= 0xE8 && code <= 0xEF) return GROUPS[2].items.find((i) => i.code === code);
+  if (code >= 0xE8 && code <= 0xEF)
+    return GROUPS.find((g) => g.name === 'Enlaces de tubería (avanzado)').items.find((i) => i.code === code);
   return BY_CODE.get(code);
 }
 

@@ -47,7 +47,6 @@ let pageOffset = 0;
 let yOffset = 0;
 let viewX = 0;
 let viewY = 0;
-const stack = [PAGE_0 + PAGE_SIZE + SAFE, PAGE_1 + PAGE_SIZE + SAFE];
 
 export let InGraphicsMode = false;
 
@@ -363,74 +362,60 @@ export function ClearPalette() {
 // ---------------------------------------------------------------------------
 // Background save stack in unused video memory (write mode 1 latch copies)
 
+// The original keeps the saved backgrounds in the unused video memory after
+// each page (about 11 KB). With many sprites on screen (e.g. 20+ Koopas)
+// that space overflows into the other page and the screen gets corrupted.
+// Here the saved backgrounds live in ordinary memory, with no limit, but
+// with the same behaviour: ResetStack only rewinds the stack pointer, the
+// data stays until it is overwritten (the title menu relies on that).
+const savedBack = [[], []];
+const stackTop = [0, 0];
+
 export function ResetStack() {
-  stack[0] = PAGE_0 + PAGE_SIZE + SAFE;
-  stack[1] = PAGE_1 + PAGE_SIZE + SAFE;
+  stackTop[0] = 0;
+  stackTop[1] = 0;
 }
 
+// Returns a non-zero handle (never $FFFF) or 0 when nothing was saved
 export function PushBackGr(X, Y, W, H) {
   if (!((Y + H >= 0) && (Y < 200))) return 0;
-  let di = stack[page];
-  // Header: X, Y, W in planes 0, 1, 2 and H in plane 3 (16-bit words)
-  const put16 = (p, a, v) => {
-    planes[p][u16(a)] = v & 0xFF;
-    planes[p][u16(a + 1)] = (v >> 8) & 0xFF;
-  };
-  put16(0, di, X);
-  put16(1, di, Y);
-  put16(2, di, W);
-  put16(3, di, H);
-  di = u16(di + 2);
-  planes[3][di] = 0x4D; // 'M'
-  di = u16(di + 1);
-  let si = u16(lineAddr(Y) + (u16(X) >>> 2) + pageOffset);
   const cx = u16(W) >>> 2;
   const h = u16(H) || 0x10000;
+  const slot = stackTop[page]++;
+  let e = savedBack[page][slot];
+  const size = cx * h;
+  if (!e || e.data.length < size * 4) {
+    e = { data: new Uint8Array(size * 4) };
+    savedBack[page][slot] = e;
+  }
+  e.X = X; e.Y = Y; e.cx = cx; e.h = h;
+  let si = u16(lineAddr(Y) + (u16(X) >>> 2) + pageOffset);
+  const [p0, p1, p2, p3] = planes;
+  const d = e.data;
+  let o = 0;
   for (let line = 0; line < h; line++) {
     for (let i = 0; i < cx; i++) {
       const s = u16(si + i);
-      const d = u16(di + i);
-      planes[0][d] = planes[0][s];
-      planes[1][d] = planes[1][s];
-      planes[2][d] = planes[2][s];
-      planes[3][d] = planes[3][s];
+      d[o++] = p0[s]; d[o++] = p1[s]; d[o++] = p2[s]; d[o++] = p3[s];
     }
-    di = u16(di + cx);
     si = u16(si + BYTES_PER_LINE);
   }
-  const result = stack[page];
-  stack[page] = u16(stack[page] + W * H + 8);
-  return result;
+  return (page << 15) | (slot + 1);
 }
 
 export function PopBackGr(Address) {
   if (Address === 0) return;
-  let si = u16(Address);
-  const get16 = (p, a) => planes[p][u16(a)] | (planes[p][u16(a + 1)] << 8);
-  const s16 = (v) => (v << 16) >> 16;
-  const X = s16(get16(0, si));
-  const Y = s16(get16(1, si));
-  const W = s16(get16(2, si));
-  const H = s16(get16(3, si));
-  si = u16(si + 2);
-  if (planes[3][si] !== 0x4D) {
-    console.warn('PopBackGr: corrupted background stack at', Address);
-    return;
-  }
-  si = u16(si + 1);
-  let di = u16(lineAddr(Y) + (u16(X) >>> 2) + pageOffset);
-  const cx = u16(W) >>> 2;
-  const h = u16(H) || 0x10000;
-  for (let line = 0; line < h; line++) {
-    for (let i = 0; i < cx; i++) {
-      const s = u16(si + i);
-      const d = u16(di + i);
-      planes[0][d] = planes[0][s];
-      planes[1][d] = planes[1][s];
-      planes[2][d] = planes[2][s];
-      planes[3][d] = planes[3][s];
+  const e = savedBack[(Address >> 15) & 1][(Address & 0x7FFF) - 1];
+  if (!e) return;
+  let di = u16(lineAddr(e.Y) + (u16(e.X) >>> 2) + pageOffset);
+  const [p0, p1, p2, p3] = planes;
+  const d = e.data;
+  let o = 0;
+  for (let line = 0; line < e.h; line++) {
+    for (let i = 0; i < e.cx; i++) {
+      const t = u16(di + i);
+      p0[t] = d[o++]; p1[t] = d[o++]; p2[t] = d[o++]; p3[t] = d[o++];
     }
-    si = u16(si + cx);
     di = u16(di + BYTES_PER_LINE);
   }
 }

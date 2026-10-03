@@ -1,7 +1,7 @@
 // Service worker: makes the game work offline once installed.
 // Network first (always fresh when online), cache as fallback.
 
-const CACHE = 'mario-luigi-v5';
+const CACHE = 'mario-luigi-v6';
 
 const FILES = [
   './',

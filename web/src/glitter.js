@@ -4,7 +4,7 @@ import * as VGA from './vga256.js';
 import { B, W, H, NH, NV } from './buffers.js';
 import { random } from './pascal.js';
 
-const MaxGlitter = 75;
+const MaxGlitter = 200; // original: 75 (must stay below 256)
 
 // Count is a string[MaxGlitter]: Count[0] (its length byte) is NumGlitter.
 const Count = new Uint8Array(MaxGlitter + 1);

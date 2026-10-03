@@ -295,6 +295,7 @@ const TOOLS = [
   { id: 'select', icon: '⬚', name: 'Seleccionar', key: 'm' },
   { id: 'picker', icon: '💧', name: 'Coger', key: 'i' },
   { id: 'start', icon: '🚩', name: 'Inicio', key: 'j' },
+  { id: 'link', icon: '🔗', name: 'Enlace', key: 'l' },
   { id: 'hand', icon: '✋', name: 'Mover', key: 'h' },
 ];
 
@@ -656,6 +657,9 @@ function pointerDown(e) {
       beginEdit();
       setStart(c.x, c.y);
       break;
+    case 'link':
+      linkClick(c.x, c.y);
+      break;
   }
 }
 
@@ -743,11 +747,43 @@ function updateStatus() {
   $('st-width').textContent = `${a.width} col.`;
 }
 
+function renderZones() {
+  const box = $('zones');
+  box.innerHTML = '';
+  S.level.areas.forEach((a, i) => {
+    if (!a) return;
+    const b = document.createElement('button');
+    b.textContent = `${i + 1}`;
+    b.title = `Zona ${i + 1}${i === 0 ? ' (inicio del nivel)' : ''}`;
+    b.classList.toggle('on', i === S.areaIndex);
+    b.addEventListener('click', () => switchArea(i));
+    box.appendChild(b);
+  });
+  if (S.level.areas.length < L.MAX_ZONES || S.level.areas.some((a) => !a)) {
+    const add = document.createElement('button');
+    add.textContent = '+';
+    add.title = 'Nueva zona (se conecta con la herramienta 🔗 Enlace)';
+    add.addEventListener('click', addZone);
+    box.appendChild(add);
+  }
+}
+
+function addZone() {
+  let i = S.level.areas.findIndex((a) => !a);
+  if (i < 0) i = S.level.areas.length;
+  if (i >= L.MAX_ZONES) return toast(`Máximo ${L.MAX_ZONES} zonas.`);
+  beginEdit();
+  const z = L.newArea(40, area().options);
+  z.options.InitX = 2 * W + 10;
+  z.options.InitY = 9 * H;
+  S.level.areas[i] = z;
+  switchArea(i);
+  toast(`Zona ${i + 1} creada. Conéctala con la herramienta 🔗 Enlace.`);
+}
+
 function updateUI() {
   $('level-name').value = S.level.name;
-  $('btn-area0').classList.toggle('on', S.areaIndex === 0);
-  $('btn-area1').classList.toggle('on', S.areaIndex === 1);
-  $('btn-area1').disabled = !S.level.areas[1];
+  renderZones();
   $('btn-undo').disabled = !S.undo.length;
   $('btn-redo').disabled = !S.redo.length;
   $('btn-grid').classList.toggle('on', S.grid);
@@ -879,6 +915,40 @@ const BACKGR = { 0: 'Ninguno (color liso)', 1: 'Colinas redondas', 2: 'Colinas (
   6: 'Columnas', 9: 'Colinas bajas', 10: 'Colinas altas' };
 const WALLS = { 0: 'Verde', 1: 'Arena', 2: 'Verde con colores «Suelo»', 3: 'Marrón', 4: 'Hierba', 5: 'Desierto',
   100: 'Ladrillos 1', 101: 'Ladrillos 2', 102: 'Ladrillos 3' };
+const WALLS_EXTRA = { 0: 'Verde', 1: 'Arena', 2: 'Verde con colores «Suelo»', 3: 'Marrón', 4: 'Hierba', 5: 'Desierto' };
+
+// Every look used by the game (options of each level, area and turbo round)
+const THEMES = [
+  { raw: 'OPTIONS_0', name: 'Título: colinas al atardecer' },
+  { raw: 'OPTIONS_1A', name: 'Nivel 1: praderas y palmeras' },
+  { raw: 'OPT_1A', name: 'Nivel 1 turbo: atardecer' },
+  { raw: 'OPTIONS_1B', name: 'Nivel 1 área 2: ladrillo' },
+  { raw: 'OPTIONS_2A', name: 'Nivel 2: ladrillo oscuro' },
+  { raw: 'OPT_2A', name: 'Nivel 2 turbo: columnas' },
+  { raw: 'OPTIONS_3A', name: 'Nivel 3: cielo y palmeras' },
+  { raw: 'OPT_3A', name: 'Nivel 3 turbo: cielo celeste' },
+  { raw: 'OPTIONS_5A', name: 'Nivel 4: montañas' },
+  { raw: 'OPT_5A', name: 'Nivel 4 turbo: tarde naranja' },
+  { raw: 'OPTIONS_5B', name: 'Nivel 4 área 2: columnas y lava' },
+  { raw: 'OPTIONS_6A', name: 'Nivel 5: colinas y árboles' },
+  { raw: 'OPT_6A', name: 'Nivel 5 turbo: noche' },
+  { raw: 'OPTIONS_6B', name: 'Nivel 5 área 2: colinas bajas' },
+  { raw: 'OPTIONS_4A', name: 'Nivel 6: castillo gris' },
+  { raw: 'OPT_4A', name: 'Nivel 6 turbo: castillo' },
+  { raw: 'OPTIONS_4B', name: 'Nivel 6 área 2: castillo marrón' },
+];
+
+// Applies the look of a theme to the current zone: sky, background, main
+// ground, decoration and colours. The start position and the extra
+// terrains (2 and 3, chosen by the user) are kept.
+function applyLook(src) {
+  beginEdit();
+  const o = area().options;
+  const keep = { InitX: o.InitX, InitY: o.InitY, WallType2: o.WallType2, WallType3: o.WallType3 };
+  Object.assign(o, src, keep);
+  refreshAll();
+}
+
 const DESIGN = { 0: 'Ninguno', 1: 'Palmeras, vallas y cascadas', 2: 'Árboles y arbustos', 3: 'Ventanas', 4: 'Lava', 5: 'Lava roja' };
 
 function selectHtml(id, options, value) {
@@ -904,12 +974,14 @@ function swatch(base) {
 function fillOptionsDialog() {
   const o = area().options;
   const f = $('opt-form');
-  const looks = L.builtinList().map((b) => `<option value="${b.key}">${b.name}</option>`).join('');
+  const looks = THEMES.map((t) => `<option value="${t.raw}">${t.name}</option>`).join('');
   f.innerHTML = `
     <label>Copiar aspecto de</label><select id="o-copy"><option value="">—</option>${looks}</select>
     <label>Cielo</label>${selectHtml('o-SkyType', Object.fromEntries(SKY.map((n, i) => [i, n])), o.SkyType)}
     <label>Fondo</label>${selectHtml('o-BackGrType', BACKGR, o.BackGrType)}
     <label>Suelo (terreno A–D)</label>${selectHtml('o-WallType1', WALLS, o.WallType1)}
+    <label>Suelo 2 (terreno 2)</label>${selectHtml('o-WallType2', WALLS_EXTRA, WALLS_EXTRA[o.WallType2] ? o.WallType2 : 0)}
+    <label>Suelo 3 (terreno 3)</label>${selectHtml('o-WallType3', WALLS_EXTRA, WALLS_EXTRA[o.WallType3] ? o.WallType3 : 0)}
     <label>Decoración # y %</label>${selectHtml('o-Design', DESIGN, o.Design)}
     <label>Horizonte (px)</label><input id="o-Horizon" type="number" min="0" max="255" value="${o.Horizon}">
     <label>Color tuberías</label><div><input id="o-PipeColor" type="number" min="0" max="255" value="${o.PipeColor}"></div>
@@ -928,10 +1000,9 @@ function fillOptionsDialog() {
     el.addEventListener('change', () => {
       if (el.id === 'o-copy') {
         if (!el.value) return;
-        const src = L.loadBuiltin(el.value).areas[0].options;
-        beginEdit();
-        const { InitX, InitY } = area().options;
-        area().options = { ...src, InitX, InitY };
+        applyLook(optionsFromBytes(RAW[el.value]));
+        fillOptionsDialog();
+        return;
       } else {
         const name = el.id.slice(2);
         let v = Number(el.value) | 0;
@@ -944,8 +1015,143 @@ function fillOptionsDialog() {
     });
   }
   $('opt-width').value = area().width;
-  $('area2-create').disabled = !!S.level.areas[1];
-  $('area2-delete').disabled = !S.level.areas[1];
+  $('zone-delete').disabled = S.areaIndex === 0;
+}
+
+// --- pipe links (warp zones) ------------------------------------------------------------
+
+const PIPE_L = 0x30;
+const PIPE_R = 0x31;
+let link = null; // { zone, mx, codeY } origin while choosing the destination
+
+// Finds the pipe mouth for a clicked cell: returns { mx, codeY } where the
+// two link codes go (above a pipe opening upwards, below one opening down).
+function pipeAt(x, y) {
+  const a = area();
+  const c = (cx, cy) => (inside(cx, cy) ? a.cells[cx * NV + cy] : 0);
+  let mx = -1;
+  let my = -1;
+  for (const [dx, dy] of [[0, 0], [-1, 0], [0, 1], [-1, 1], [0, -1], [-1, -1]]) {
+    if (c(x + dx, y + dy) === PIPE_L && c(x + dx + 1, y + dy) === PIPE_R) {
+      mx = x + dx;
+      my = y + dy;
+      break;
+    }
+  }
+  if (mx < 0) return null;
+  const body = (cy) => c(mx, cy) === 0x32 || c(mx, cy) === 0x33;
+  const codeY = body(my + 1) || !body(my - 1) ? my - 1 : my + 1;
+  if (codeY < 0 || codeY >= NV) return null;
+  return { mx, codeY, down: codeY > my };
+}
+
+function linkClick(x, y) {
+  const p = pipeAt(x, y);
+  if (!p) return toast('Haz clic en la boca de una tubería (las piezas de arriba, «Boca izquierda/derecha»).');
+  if (link && link.choosing) return linkArrival(p);
+  link = { zone: S.areaIndex, ...p };
+  const sel = $('link-dest');
+  const cur = area().cells[p.mx * NV + p.codeY];
+  sel.innerHTML = '';
+  const add = (value, text) => {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = text;
+    sel.appendChild(o);
+  };
+  add('none', 'Nada (tubería decorativa)');
+  add('exit', 'Salida del nivel (FIN)');
+  S.level.areas.forEach((a, i) => {
+    if (!a) return;
+    add(`zone:${i}`, i === S.areaIndex ? `Otra tubería de esta zona (${i + 1})` : `Zona ${i + 1}`);
+  });
+  for (let n = 1; n <= 7; n++) add(`warp:${n}`, n === 1 ? 'Warp: siguiente nivel' : `Warp: avanzar ${n} niveles`);
+  // preselect the current destination
+  let v = 'none';
+  if (cur === 0xE7) v = 'exit';
+  else if (cur >= 0xC0 && cur <= 0xC7) v = `zone:${cur - 0xC0}`;
+  else if (cur === 0xE0) v = `zone:${S.areaIndex}`;
+  else if (cur === 0xE1) v = `zone:${S.areaIndex === 0 ? 1 : 0}`;
+  else if (cur >= 0xD1 && cur <= 0xD7) v = `warp:${cur - 0xD0}`;
+  sel.value = [...sel.options].some((o) => o.value === v) ? v : 'none';
+  $('link-where').textContent = `Tubería en la columna ${p.mx}, zona ${S.areaIndex + 1}.`;
+  linkHelp();
+  openDialog('dlg-link');
+}
+
+function linkHelp() {
+  const v = $('link-dest').value;
+  const zone = v.startsWith('zone:');
+  $('link-both').disabled = !zone;
+  $('link-help').textContent = zone
+    ? 'Al aceptar, haz clic en la tubería de llegada (en la zona elegida). Mario saldrá por ella.'
+    : v.startsWith('warp:')
+      ? 'En el modo de juego avanza varios niveles (como las warp zones de SMB). En un nivel suelto, termina el nivel.'
+      : v === 'exit' ? 'Al entrar se supera el nivel.' : 'La tubería no lleva a ningún sitio.';
+}
+
+// Pair numbers ($E8..$EF) already used as arrival marks in a zone
+function usedPairs(zone) {
+  const a = S.level.areas[zone];
+  const used = new Set();
+  for (let x = 0; x < a.width - 1; x++)
+    for (let y = 0; y < NV; y++) {
+      const r = a.cells[(x + 1) * NV + y];
+      if (r >= 0xE8 && r <= 0xEF && (a.cells[(x + 1) * NV + y + 1] === PIPE_R || a.cells[(x + 1) * NV + y - 1] === PIPE_R)) used.add(r);
+    }
+  return used;
+}
+
+function linkConfirm() {
+  const v = $('link-dest').value;
+  $('dlg-link').close();
+  const a = area();
+  const set = (l, r) => {
+    a.cells[link.mx * NV + link.codeY] = l;
+    a.cells[(link.mx + 1) * NV + link.codeY] = r;
+  };
+  if (v === 'none' || v === 'exit' || v.startsWith('warp:')) {
+    beginEdit();
+    if (v === 'none') set(SP, SP);
+    else if (v === 'exit') set(0xE7, 0xE7);
+    else set(0xD0 + Number(v.slice(5)), 0xE7);
+    refreshColumns(link.mx, link.mx + 1);
+    link = null;
+    return;
+  }
+  const target = Number(v.slice(5));
+  link.target = target;
+  link.both = $('link-both').checked;
+  link.choosing = true;
+  if (target !== S.areaIndex) switchArea(target);
+  setTool('link');
+  toast(`Ahora haz clic en la tubería de llegada de la zona ${target + 1} (Esc cancela).`);
+}
+
+function linkArrival(p) {
+  const origin = link;
+  const zoneA = S.level.areas[origin.zone];
+  const zoneB = area();
+  if (origin.zone === S.areaIndex && p.mx === origin.mx && p.codeY === origin.codeY)
+    return toast('Elige otra tubería distinta de la de entrada.');
+  // a pair number free in both zones
+  const used = new Set([...usedPairs(origin.zone), ...usedPairs(S.areaIndex)]);
+  for (const code of [zoneA.cells[(origin.mx + 1) * NV + origin.codeY], zoneB.cells[(p.mx + 1) * NV + p.codeY]]) used.delete(code);
+  let pair = 0;
+  for (let c = 0xE8; c <= 0xEF; c++) if (!used.has(c)) { pair = c; break; }
+  if (!pair) return toast('No quedan números de pareja libres (máximo 8 por zona).');
+  beginEdit();
+  const sameZone = origin.zone === S.areaIndex;
+  const goCode = sameZone ? 0xE0 : 0xC0 + S.areaIndex;
+  const backCode = !origin.both ? 0xEE : sameZone ? 0xE0 : 0xC0 + origin.zone;
+  const A = S.level.areas[origin.zone];
+  A.cells[origin.mx * NV + origin.codeY] = goCode;
+  A.cells[(origin.mx + 1) * NV + origin.codeY] = pair;
+  zoneB.cells[p.mx * NV + p.codeY] = backCode;
+  zoneB.cells[(p.mx + 1) * NV + p.codeY] = pair;
+  link = null;
+  refreshColumns(0, area().width);
+  toast(`Enlazadas (pareja ${pair - 0xE7})${origin.both ? ', ida y vuelta' : ''}.`);
 }
 
 // --- play test ------------------------------------------------------------------------------
@@ -1032,8 +1238,22 @@ function bind() {
   $('btn-zoom-in').addEventListener('click', () => setZoom(S.zoom + 1));
   $('btn-zoom-out').addEventListener('click', () => setZoom(S.zoom - 1));
   $('btn-grid').addEventListener('click', () => { S.grid = !S.grid; updateUI(); draw(); saveSession(); });
-  $('btn-area0').addEventListener('click', () => switchArea(0));
-  $('btn-area1').addEventListener('click', () => switchArea(1));
+  // themes: the look of every level and area of the game
+  for (const t of THEMES) {
+    const o = document.createElement('option');
+    o.value = t.raw;
+    o.textContent = t.name;
+    $('theme').appendChild(o);
+  }
+  $('theme').addEventListener('change', () => {
+    const raw = $('theme').value;
+    $('theme').value = '';
+    if (!raw) return;
+    applyLook(optionsFromBytes(RAW[raw]));
+    toast(`Tema aplicado a la zona ${S.areaIndex + 1}.`);
+  });
+  $('link-ok').addEventListener('click', linkConfirm);
+  $('link-dest').addEventListener('change', linkHelp);
   $('btn-options').addEventListener('click', () => { fillOptionsDialog(); openDialog('dlg-options'); });
   $('btn-export').addEventListener('click', () => openDialog('dlg-file'));
 
@@ -1053,23 +1273,17 @@ function bind() {
   });
   $('col-insert').addEventListener('click', () => insertColumn(S.cursorX));
   $('col-delete').addEventListener('click', () => deleteColumn(S.cursorX));
-  $('area2-create').addEventListener('click', () => {
+  $('zone-delete').addEventListener('click', () => {
+    const i = S.areaIndex;
+    if (i === 0) return toast('La zona 1 es donde empieza el nivel: no se puede eliminar.');
+    if (!confirm(`¿Eliminar la zona ${i + 1}? Las tuberías que lleven a ella dejarán de funcionar.`)) return;
     beginEdit();
-    const a = L.newArea(40, area().options);
-    a.options.InitX = 2 * W + 10;
-    a.options.InitY = 9 * H;
-    S.level.areas[1] = a;
-    fillOptionsDialog();
-    updateUI();
-    toast('Área 2 creada. Conéctala con tuberías: ⇄ sobre la boca izquierda y el mismo número de pareja sobre la derecha, en las dos áreas.');
-  });
-  $('area2-delete').addEventListener('click', () => {
-    if (!confirm('¿Eliminar el área 2?')) return;
-    beginEdit();
-    S.level.areas[1] = null;
-    if (S.areaIndex === 1) switchArea(0);
-    fillOptionsDialog();
-    updateUI();
+    if (i === S.level.areas.length - 1) S.level.areas.pop();
+    else S.level.areas[i] = null; // keep the numbers of the other zones
+    while (S.level.areas.length > 2 && !S.level.areas[S.level.areas.length - 1]) S.level.areas.pop();
+    $('dlg-options').close();
+    switchArea(0);
+    toast(`Zona ${i + 1} eliminada.`);
   });
 
   // export / import
@@ -1126,7 +1340,14 @@ function bind() {
     if (mod && k === 'v') { e.preventDefault(); startPaste(); return; }
     if (mod) return;
     if (e.key === 'Delete' || e.key === 'Backspace') { deleteSel(); return; }
-    if (e.key === 'Escape') { S.pasting = false; S.selection = null; draw(); return; }
+    if (e.key === 'Escape') {
+      if (link && link.choosing) toast('Enlace cancelado.');
+      link = null;
+      S.pasting = false;
+      S.selection = null;
+      draw();
+      return;
+    }
     if (e.key === '+' || e.key === '=') { setZoom(S.zoom + 1); return; }
     if (e.key === '-') { setZoom(S.zoom - 1); return; }
     if (k === 'g') { S.grid = !S.grid; updateUI(); draw(); return; }

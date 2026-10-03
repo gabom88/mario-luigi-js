@@ -2,7 +2,7 @@
 
 import * as VGA from './vga256.js';
 import {
-  B, W, H, NV, EY1, WorldMap, canHoldYou, canStandOn, isHidden, AddScore, Beep,
+  B, W, H, NV, EY1, WorldMap, canHoldYou, canStandOn, isHidden, AddScore, Beep, isPipeEntry,
   dirLeft, dirRight, mdSmall, mdLarge, mdFire, plMario, plLuigi,
   dmNoDemo, dmDownInToPipe, dmUpOutOfPipe, dmUpInToPipe, dmDownOutOfPipe, dmDead,
 } from './buffers.js';
@@ -190,7 +190,10 @@ export function DoDemo() {
   switch (B.Demo) {
     case dmDownInToPipe:
     case dmUpOutOfPipe:
-      if (PL.PipeCode[0] === 0xE7 && !B.Passed) {
+      // $E7: exit; $D1..$D7: warp to a later level (editor levels)
+      const exit = PL.PipeCode[0] === 0xE7 || (PL.PipeCode[0] >= 0xD1 && PL.PipeCode[0] <= 0xD7);
+      if (exit && !B.Passed) {
+        B.Warp = PL.PipeCode[0] === 0xE7 ? 1 : PL.PipeCode[0] - 0xD0;
         B.Passed = true;
         B.TextCounter = 0;
       }
@@ -277,7 +280,7 @@ function CheckPipeBelow() {
   const Mo = X % W;
   if (!inRange(Mo, 4, W - 4)) return;
   if (Below1 !== ch('0') || Below2 !== ch('1')
-    || !inRange(AtCh1, 0xE0, 0xE7)
+    || !isPipeEntry(AtCh1)
     || !inRange(AtCh2, 0xE0, 0xEF)) return;
   PL.PipeCode[0] = AtCh1;
   PL.PipeCode[1] = AtCh2;
@@ -290,7 +293,7 @@ function CheckPipeAbove(C1, C2) {
   if (C1 !== ch('0') || C2 !== ch('1')) return;
   PL.MapX = Math.trunc(X / W);
   PL.MapY = Math.trunc(Y / H) + 1;
-  if (!inRange(WorldMap.get(PL.MapX, PL.MapY), 0xE0, 0xE7)
+  if (!isPipeEntry(WorldMap.get(PL.MapX, PL.MapY))
     || !inRange(WorldMap.get(PL.MapX + 1, PL.MapY), 0xE0, 0xEF)) return;
   PL.PipeCode[0] = WorldMap.get(PL.MapX, PL.MapY);
   PL.PipeCode[1] = WorldMap.get(PL.MapX + 1, PL.MapY);

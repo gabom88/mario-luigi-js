@@ -304,6 +304,7 @@ copia: al guardar se crean en *Mis niveles*.
 | ⬚ Seleccionar | M | Selección para **copiar, cortar, pegar, borrar y voltear** (Ctrl+C / X / V, Supr) |
 | 💧 Coger | I | Toma el bloque de una celda (también Alt+clic) |
 | 🚩 Inicio | J | Dónde empieza Mario (clic donde van sus pies) |
+| 🔗 Enlace | L | Conecta una tubería: elige a dónde lleva y, si es otra zona, haz clic en la tubería de llegada |
 | ✋ Mover | H | Desplaza la vista (también con la rueda, el botón central o Espacio+arrastrar) |
 
 Más: **deshacer y rehacer** (Ctrl+Z / Ctrl+Y), zoom (+/−, Ctrl+rueda),
@@ -313,10 +314,13 @@ es un panel desplegable.
 
 **Paleta**: todos los bloques del motor, agrupados.
 
-- **Básico**: terreno A–D y moneda.
+- **Básico**: terreno A–D, **terrenos 2 y 3** (para mezclar tipos de suelo)
+  y moneda.
 - **Bloques**: `?`, usado, invisible, ladrillo, piedra, nota, X, madera y
   pinchos.
-- **Tuberías**: las cuatro piezas y los **códigos de enlace**.
+- **Tuberías**: las cuatro piezas y la salida del nivel.
+- **Enlaces de tubería (avanzado)**: los códigos que escribe la herramienta
+  🔗, por si quieres ponerlos a mano.
 - **Contenido de ?**: champiñón o flor, vida, estrella, veneno, 10 monedas y
   convertir en nota.
 - **Enemigos**: Goomba, erizo, Koopas, tres pirañas, pez, bola de lava y
@@ -327,6 +331,29 @@ es un panel desplegable.
   turbo.
 
 Cada bloque muestra una ayuda al elegirlo.
+
+**Zonas y warps**: un nivel puede tener hasta **8 zonas** (pestañas
+1, 2, … y «+» en la barra). Con la herramienta **🔗 Enlace** haces clic en
+la boca de una tubería y eliges a dónde lleva:
+
+- **otra tubería de la misma zona** o **de otra zona** (con *ida y vuelta*
+  opcional): después haces clic en la tubería de llegada y el editor
+  escribe los códigos de los dos extremos;
+- **salida del nivel**;
+- **warp**: termina el nivel y, en el modo de juego, **avanza varios
+  niveles**, como las *warp zones* de Super Mario Bros.
+
+El juego recuerda el estado de cada zona (monedas, bloques rotos) al ir y
+volver, como hacía el original con sus dos áreas.
+
+**Mezclar terrenos**: además del terreno A–D, los **terrenos 2 y 3** usan el
+«Suelo 2» y «Suelo 3» de las opciones (verde, arena, marrón, hierba,
+desierto o verde recoloreado). Cada uno tiene sus propios bordes, así que
+en un mismo nivel puede haber, por ejemplo, praderas, arena y roca.
+
+**Temas** (🎨 en la barra): aplica el cielo, el fondo, el suelo y los
+colores de cualquier escenario del juego (los 6 niveles, sus áreas y la
+segunda vuelta). Los terrenos 2 y 3 que hayas elegido se mantienen.
 
 Cómo funcionan algunos códigos del motor:
 
@@ -339,10 +366,10 @@ Cómo funcionan algunos códigos del motor:
 - **Pirañas, peces y bolas de lava** se colocan 2 filas por encima de donde
   aparecen.
 
-**Opciones del área** (⚙): cielo, fondo, tipo de suelo, decoración,
+**Opciones de la zona** (⚙): cielo, fondo, tipo de suelo (y suelos 2 y 3), decoración,
 horizonte, colores (tuberías, suelo, ladrillos, madera, bloque X, fondo,
-hierba), ancho del nivel (17 a 600 columnas), insertar o borrar columnas y
-crear o eliminar el área 2. «Copiar aspecto de» toma todo el estilo de un
+hierba), ancho de la zona (17 a 600 columnas), insertar o borrar columnas y
+eliminar la zona. «Copiar aspecto de» toma todo el estilo de un
 nivel existente. Las colinas del fondo (parallax) solo se ven al probar.
 
 **Probar** (▶): abre el juego con el nivel; al superarlo o salir con Esc
@@ -488,6 +515,15 @@ Diferencias conocidas:
   70 fps exactos.
 - **Partidas y ajustes** se guardan en `localStorage` en lugar del archivo
   `MARIO.CFG`.
+- **Límites ampliados** para los niveles del editor: el original admitía 25
+  enemigos a la vez (ahora 150), 20 objetos temporales (60) y 75 destellos
+  (200). Además, el fondo que se guarda detrás de cada sprite ocupaba la
+  memoria de vídeo sobrante (~11 KB por página): con unos 20 Koopas en
+  pantalla se desbordaba y corrompía la imagen. Ahora se guarda en memoria
+  normal, sin límite y con el mismo resultado visual.
+- **Códigos nuevos** (que ningún nivel original usa): terrenos 2 y 3
+  (`$B2`–`$B5`), tuberías a zonas (`$C0`–`$C7`), warps (`$D1`–`$D7`) y
+  tubería solo de llegada (`$EE`).
 - **Añadido**: remapeo de teclas, controles táctiles, mando, elección de
   personaje, LEVEL SELECT, extras y PWA.
 
