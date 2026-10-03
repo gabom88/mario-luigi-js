@@ -7,3 +7,6 @@ MARIOSRC.ZIP
 node_modules/
 snaps/
 *.log
+
+# Local scratch files (screenshots pasted into chats, etc.)
+temp/
