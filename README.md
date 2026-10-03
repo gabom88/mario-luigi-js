@@ -16,7 +16,8 @@ Web oficial del juego original: **<https://wieringsoftware.nl/mario/index.html>*
 |---|---|
 | ![Menú principal](docs/screenshots/menu.png) | ![Nivel 1](docs/screenshots/level1.png) |
 | ![Nivel 3, con Koopas](docs/screenshots/level3.png) | ![Nivel 6, el castillo](docs/screenshots/level6.png) |
-| ![Nivel 2, subterráneo](docs/screenshots/level2.png) | ![LEVEL SELECT](docs/screenshots/level-select.png) |
+| ![Nivel 2, subterráneo](docs/screenshots/level2.png) | ![Nivel 4, montañas](docs/screenshots/level4.png) |
+| ![LEVEL SELECT](docs/screenshots/level-select.png) | ![Área secundaria del castillo](docs/screenshots/castle-area.png) |
 
 ---
 
