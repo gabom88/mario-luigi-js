@@ -11,12 +11,40 @@ const STORE_KEY = 'mario-luigi-controls';
 // bindings are discarded once, the other settings are kept.
 const STORE_VERSION = 2;
 
+// Touch layout items. x / y are measured from the screen edge given by
+// 'anchor' (vw from the side, vh from the bottom); size is in vmin.
+const LAYOUT_ITEMS = [
+  { id: 'dpad', label: 'Flechas ← →', anchor: 'left', size: [15, 60] },
+  { id: 'a', label: 'Botón A (saltar)', anchor: 'right', size: [8, 40] },
+  { id: 'b', label: 'Botón B (correr y disparar)', anchor: 'right', size: [8, 40] },
+  { id: 'act', label: 'Botón ⇅ (tuberías)', anchor: 'right', size: [6, 30] },
+];
+
+// One layout per orientation, so portrait and landscape can differ.
+const DEFAULT_LAYOUTS = {
+  landscape: {
+    alpha: 0.55,
+    dpad: { x: 4, y: 6, size: 34 },
+    a: { x: 4, y: 22, size: 19 },
+    b: { x: 16, y: 6, size: 19 },
+    act: { x: 17, y: 38, size: 12 },
+  },
+  portrait: {
+    alpha: 0.55,
+    dpad: { x: 4, y: 8, size: 34 },
+    a: { x: 4, y: 16, size: 19 },
+    b: { x: 26, y: 8, size: 19 },
+    act: { x: 30, y: 23, size: 12 },
+  },
+};
+
 const DEFAULT_TOUCH = {
   enabled: false,
-  alpha: 0.55,
-  dpad: { x: 4, y: 6, size: 34 },
-  buttons: { x: 4, y: 6, size: 30 },
+  layouts: DEFAULT_LAYOUTS,
 };
+
+const ORIENT_NAME = { portrait: 'vertical', landscape: 'horizontal' };
+const orientation = () => (window.innerHeight > window.innerWidth * 1.1 ? 'portrait' : 'landscape');
 
 const isTouchDevice = () =>
   'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
@@ -30,7 +58,24 @@ export const settings = {
   // character of player 1 and player 2: 0 = Mario, 1 = Luigi
   characters: [0, 1],
   extras: { crt: false, enhancedSound: false, vibration: true },
+  // saved touch layouts: { name, orientation, layout }
+  touchTemplates: [],
 };
+
+// Layout currently in use (and being edited)
+const layout = () => settings.touch.layouts[orientation()];
+
+function validLayout(l, fallback) {
+  const out = clone(fallback);
+  if (!l || typeof l !== 'object') return out;
+  if (typeof l.alpha === 'number') out.alpha = l.alpha;
+  for (const it of LAYOUT_ITEMS) {
+    for (const k of ['x', 'y', 'size']) {
+      if (typeof l[it.id]?.[k] === 'number') out[it.id][k] = l[it.id][k];
+    }
+  }
+  return out;
+}
 
 function applyCharacters() {
   B.Character[0] = settings.characters[0];
@@ -57,12 +102,22 @@ function load() {
     if (s.video) settings.video = { ...settings.video, ...s.video };
     if (s.extras) settings.extras = { ...settings.extras, ...s.extras };
     if (s.touch) {
-      settings.touch = {
-        ...clone(DEFAULT_TOUCH),
-        ...s.touch,
-        dpad: { ...DEFAULT_TOUCH.dpad, ...s.touch.dpad },
-        buttons: { ...DEFAULT_TOUCH.buttons, ...s.touch.buttons },
-      };
+      if (typeof s.touch.enabled === 'boolean') settings.touch.enabled = s.touch.enabled;
+      if (s.touch.layouts) {
+        for (const o of ['portrait', 'landscape'])
+          settings.touch.layouts[o] = validLayout(s.touch.layouts[o], DEFAULT_LAYOUTS[o]);
+      } else if (typeof s.touch.alpha === 'number') {
+        // older single layout: keep only its opacity
+        for (const o of ['portrait', 'landscape']) settings.touch.layouts[o].alpha = s.touch.alpha;
+      }
+    }
+    if (Array.isArray(s.touchTemplates)) {
+      settings.touchTemplates = s.touchTemplates
+        .filter((t) => t && typeof t.name === 'string')
+        .map((t) => {
+          const o = t.orientation === 'portrait' ? 'portrait' : 'landscape';
+          return { name: t.name.slice(0, 24), orientation: o, layout: validLayout(t.layout, DEFAULT_LAYOUTS[o]) };
+        });
     }
   } catch {
     // corrupted or unavailable storage: keep defaults
@@ -186,11 +241,9 @@ function buildTouch() {
     <div class="dpad" data-kind="dpad">
       <div class="arm left"></div><div class="arm right"></div>
     </div>
-    <div class="ab" data-kind="buttons">
-      <div class="btn act" title="Entrar en tubería"><span>&#8661;</span></div>
-      <div class="btn b"><span>B</span></div>
-      <div class="btn a"><span>A</span></div>
-    </div>
+    <div class="btn act" data-kind="buttons" title="Entrar en tubería"><span>&#8661;</span></div>
+    <div class="btn b" data-kind="buttons"><span>B</span></div>
+    <div class="btn a" data-kind="buttons"><span>A</span></div>
     <div class="sys">
       <button data-scan="28">START</button>
       <button data-scan="25">PAUSA</button>
@@ -203,7 +256,8 @@ function buildTouch() {
   btnB = touchLayer.querySelector('.btn.b');
   btnAct = touchLayer.querySelector('.btn.act');
 
-  for (const el of [dpadEl, touchLayer.querySelector('.ab')]) {
+  // A pointer that starts on any of A / B / action can slide between them
+  for (const el of [dpadEl, btnA, btnB, btnAct]) {
     el.addEventListener('pointerdown', (e) => {
       if (panelOpen) return;
       e.preventDefault();
@@ -249,15 +303,15 @@ function buildTouch() {
 
 function applyTouch() {
   const t = settings.touch;
+  const l = layout();
   document.body.classList.toggle('touch-on', t.enabled);
   touchLayer.style.display = t.enabled ? '' : 'none';
-  touchLayer.style.setProperty('--alpha', t.alpha);
-  touchLayer.style.setProperty('--dpad-x', `${t.dpad.x}vw`);
-  touchLayer.style.setProperty('--dpad-y', `${t.dpad.y}vh`);
-  touchLayer.style.setProperty('--dpad-size', `${t.dpad.size}vmin`);
-  touchLayer.style.setProperty('--btn-x', `${t.buttons.x}vw`);
-  touchLayer.style.setProperty('--btn-y', `${t.buttons.y}vh`);
-  touchLayer.style.setProperty('--btn-size', `${t.buttons.size}vmin`);
+  touchLayer.style.setProperty('--alpha', l.alpha);
+  for (const it of LAYOUT_ITEMS) {
+    touchLayer.style.setProperty(`--${it.id}-x`, `${l[it.id].x}vw`);
+    touchLayer.style.setProperty(`--${it.id}-y`, `${l[it.id].y}vh`);
+    touchLayer.style.setProperty(`--${it.id}-size`, `${l[it.id].size}vmin`);
+  }
   touchLayer.classList.toggle('preview', panelOpen);
   if (!t.enabled) for (const id of [...pointers.keys()]) endPointer(id);
 }
@@ -376,32 +430,112 @@ function commitBindings() {
   save();
 }
 
-function bindSlider(id, get, set) {
-  const el = $(id);
-  const out = el.parentElement.querySelector('output');
-  el.value = get();
-  if (out) out.textContent = el.value;
-  el.addEventListener('input', () => {
-    set(Number(el.value));
-    if (out) out.textContent = el.value;
-    applyTouch();
-    save();
-  });
+// Sliders for every touch control, built from LAYOUT_ITEMS
+function buildTouchSliders() {
+  const box = $('touch-sliders');
+  box.innerHTML = '';
+  const add = (label, key, prop, min, max, step = 1) => {
+    const lab = document.createElement('label');
+    lab.innerHTML = `${label} <input type="range" min="${min}" max="${max}" step="${step}"> <output></output>`;
+    const input = lab.querySelector('input');
+    input.dataset.key = key;
+    input.dataset.prop = prop;
+    input.addEventListener('input', () => {
+      const v = Number(input.value);
+      if (key === 'alpha') layout().alpha = v / 100;
+      else layout()[key][prop] = v;
+      lab.querySelector('output').textContent = input.value;
+      applyTouch();
+      save();
+    });
+    box.appendChild(lab);
+  };
+  const group = (text) => {
+    const g = document.createElement('div');
+    g.className = 'group';
+    g.textContent = text;
+    box.appendChild(g);
+  };
+  for (const it of LAYOUT_ITEMS) {
+    group(it.label);
+    add('Horizontal', it.id, 'x', 0, 60);
+    add('Vertical', it.id, 'y', 0, 80);
+    add('Tamaño', it.id, 'size', it.size[0], it.size[1]);
+  }
+  group('General');
+  add('Opacidad %', 'alpha', 'alpha', 10, 100, 5);
 }
 
 function syncTouchForm() {
   const t = settings.touch;
+  const l = layout();
   $('touch-on').checked = t.enabled;
   $('touch-opts').hidden = !t.enabled;
-  const vals = {
-    'dpad-x': t.dpad.x, 'dpad-y': t.dpad.y, 'dpad-size': t.dpad.size,
-    'btn-x': t.buttons.x, 'btn-y': t.buttons.y, 'btn-size': t.buttons.size,
-    alpha: Math.round(t.alpha * 100),
-  };
-  for (const [id, v] of Object.entries(vals)) {
-    $(id).value = v;
-    $(id).parentElement.querySelector('output').textContent = v;
+  $('orient-name').textContent = ORIENT_NAME[orientation()];
+  for (const input of $('touch-sliders').querySelectorAll('input')) {
+    const { key, prop } = input.dataset;
+    input.value = key === 'alpha' ? Math.round(l.alpha * 100) : l[key][prop];
+    input.parentElement.querySelector('output').textContent = input.value;
   }
+}
+
+// --- touch layout templates ---
+
+function renderTemplates() {
+  const ul = $('tpl-list');
+  ul.innerHTML = '';
+  if (!settings.touchTemplates.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'Aún no hay plantillas guardadas.';
+    ul.appendChild(li);
+    return;
+  }
+  settings.touchTemplates.forEach((tpl, i) => {
+    const li = document.createElement('li');
+    const title = document.createElement('span');
+    title.className = 'tpl-title';
+    title.textContent = tpl.name;
+    const tag = document.createElement('span');
+    tag.className = 'tpl-tag';
+    tag.textContent = ORIENT_NAME[tpl.orientation];
+    const apply = document.createElement('button');
+    apply.type = 'button';
+    apply.className = 'secondary';
+    apply.textContent = 'Aplicar';
+    apply.addEventListener('click', () => {
+      settings.touch.layouts[orientation()] = clone(tpl.layout);
+      syncTouchForm();
+      applyTouch();
+      save();
+      $('tpl-msg').textContent = `«${tpl.name}» aplicada al modo ${ORIENT_NAME[orientation()]}.`;
+    });
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'secondary';
+    del.textContent = 'Borrar';
+    del.addEventListener('click', () => {
+      settings.touchTemplates.splice(i, 1);
+      save();
+      renderTemplates();
+      $('tpl-msg').textContent = `«${tpl.name}» borrada.`;
+    });
+    li.append(title, tag, apply, del);
+    ul.appendChild(li);
+  });
+}
+
+function saveTemplate() {
+  let name = $('tpl-name').value.trim().slice(0, 24);
+  if (!name) name = `Plantilla ${settings.touchTemplates.length + 1}`;
+  const tpl = { name, orientation: orientation(), layout: clone(layout()) };
+  const i = settings.touchTemplates.findIndex((t) => t.name === name);
+  if (i >= 0) settings.touchTemplates[i] = tpl;
+  else settings.touchTemplates.push(tpl);
+  save();
+  renderTemplates();
+  $('tpl-name').value = '';
+  $('tpl-msg').textContent = i >= 0 ? `«${name}» actualizada.` : `«${name}» guardada.`;
 }
 
 export function openPanel() {
@@ -497,22 +631,32 @@ export function initUI(playCallback, uiHooks = {}) {
     applyTouch();
     save();
   });
-  const t = () => settings.touch;
-  bindSlider('dpad-x', () => t().dpad.x, (v) => { t().dpad.x = v; });
-  bindSlider('dpad-y', () => t().dpad.y, (v) => { t().dpad.y = v; });
-  bindSlider('dpad-size', () => t().dpad.size, (v) => { t().dpad.size = v; });
-  bindSlider('btn-x', () => t().buttons.x, (v) => { t().buttons.x = v; });
-  bindSlider('btn-y', () => t().buttons.y, (v) => { t().buttons.y = v; });
-  bindSlider('btn-size', () => t().buttons.size, (v) => { t().buttons.size = v; });
-  bindSlider('alpha', () => Math.round(t().alpha * 100), (v) => { t().alpha = v / 100; });
+  buildTouchSliders();
   $('reset-touch').addEventListener('click', () => {
-    const enabled = settings.touch.enabled;
-    settings.touch = { ...clone(DEFAULT_TOUCH), enabled };
+    const o = orientation();
+    settings.touch.layouts[o] = clone(DEFAULT_LAYOUTS[o]);
     syncTouchForm();
     applyTouch();
     save();
+    $('tpl-msg').textContent = `Distribución ${ORIENT_NAME[o]} restablecida.`;
   });
+  $('tpl-save').addEventListener('click', saveTemplate);
+  $('tpl-name').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveTemplate();
+    }
+  });
+  renderTemplates();
   syncTouchForm();
+  // Rotating the device switches to the other orientation's layout
+  let lastOrient = orientation();
+  window.addEventListener('resize', () => {
+    if (orientation() === lastOrient) return;
+    lastOrient = orientation();
+    syncTouchForm();
+    applyTouch();
+  });
 
   $('play').addEventListener('click', play);
   $('gear').addEventListener('click', openPanel);

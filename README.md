@@ -186,7 +186,7 @@ Es la pantalla inicial. Durante la partida se vuelve a abrir con el botón
 | **Controles de teclado** | Dos teclas por acción. Clic en una casilla y pulsa la tecla nueva; **Supr** la borra y **Esc** cancela. Una tecla con varias acciones se muestra en **amarillo**. Las acciones de juego pueden compartir tecla (como N para correr y disparar), pero las de **Sistema** no. Esc y Tab no se pueden asignar. |
 | **Pantalla** | *Sincronización*: **Suave** (un frame del juego por refresco del monitor; scroll sin tirones, pero a 60 Hz el juego va un 14% más lento que el original) u **Original** (70 fps exactos, como un monitor VGA). *Escalado*: **Nítido sin parpadeo** (ampliación entera más un filtrado final, todos los píxeles del mismo tamaño) o **Píxel exacto**. |
 | **Extras** | **Filtro CRT** (líneas de barrido alineadas con las 200 líneas de la VGA, máscara de fósforo, viñeta). **Sonido mejorado** (notas con envolvente, filtro y eco en lugar del pitido del altavoz). **Vibración** en móviles al recibir daño, pisar enemigos y romper bloques. |
-| **Controles táctiles** | Activar/desactivar; posición y tamaño de las flechas y de los botones, y opacidad, con vista previa en vivo. |
+| **Controles táctiles** | Activar/desactivar. Posición horizontal, vertical y tamaño **independientes** para las flechas y para los botones A, B y ⇅, más la opacidad, con vista previa en vivo. **Cada orientación (vertical y horizontal) guarda su propia distribución** y se cambia sola al girar el móvil. **Plantillas**: guarda la distribución actual con un nombre y aplícala después a cualquier orientación (o bórrala). |
 
 ---
 

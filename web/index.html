@@ -193,6 +193,36 @@
     .extras .switch { flex-wrap: wrap; row-gap: 2px; }
     .extras .switch small { flex-basis: 100%; margin-left: 28px; }
     .extras { display: grid; gap: 10px; }
+    .orient-note { margin-top: 10px !important; }
+    .orient-note strong { color: #f5c542; }
+    .templates { margin-top: 18px; }
+    .templates .group { color: #9da0ab; font-size: 0.8rem; margin-bottom: 8px; }
+    #tpl-name {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #3a3d47;
+      background: #1d1f26;
+      color: inherit;
+      font: inherit;
+      font-size: 0.9rem;
+    }
+    .tpl-msg { min-height: 1.2em; margin-top: 4px; font-size: 0.8rem; color: #f0b44c; }
+    #tpl-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; }
+    #tpl-list li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: #1d1f26;
+      border: 1px solid #2c2e36;
+      font-size: 0.88rem;
+    }
+    #tpl-list .tpl-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #tpl-list .tpl-tag { font-size: 0.72rem; color: #8b8e99; }
+    #tpl-list .empty { color: #6f727d; background: none; border: 0; padding: 0; }
     #scroll-space { height: 0; }
     body.touch-on #scroll-space { height: 55vh; }
     #easter { margin-top: 28px; display: flex; justify-content: center; }
@@ -271,7 +301,7 @@
     #touch.preview { z-index: 30; }
     #touch.preview * { pointer-events: none !important; }
     #touch.preview.egg-view { visibility: hidden; }
-    .dpad, .ab, .sys button { pointer-events: auto; touch-action: none; }
+    .dpad, .sys button { pointer-events: auto; touch-action: none; }
     .dpad {
       position: absolute;
       left: calc(var(--dpad-x) + env(safe-area-inset-left));
@@ -300,17 +330,12 @@
     }
     .dpad .left::after { border-right-color: #c9ccd4; margin-left: -12%; }
     .dpad .right::after { border-left-color: #c9ccd4; margin-left: 12%; }
-    .ab {
-      position: absolute;
-      right: calc(var(--btn-x) + env(safe-area-inset-right));
-      bottom: calc(var(--btn-y) + env(safe-area-inset-bottom));
-      width: calc(var(--btn-size) * 1.6);
-      height: var(--btn-size);
-    }
+    /* A, B and the action button are positioned independently (from the
+       right and bottom edges of the screen) */
     .btn {
       position: absolute;
-      width: calc(var(--btn-size) * 0.62);
-      height: calc(var(--btn-size) * 0.62);
+      width: var(--s);
+      height: var(--s);
       border-radius: 50%;
       background: #b8231b;
       border: 3px solid #f0a49e;
@@ -320,18 +345,19 @@
       justify-content: center;
       color: #fff;
       font-weight: 700;
-      font-size: calc(var(--btn-size) * 0.22);
+      font-size: calc(var(--s) * 0.36);
+      pointer-events: auto;
+      touch-action: none;
     }
-    .btn.b { left: 0; bottom: 0; }
-    .btn.a { right: 0; top: 0; }
+    .btn.a { --s: var(--a-size); right: calc(var(--a-x) + env(safe-area-inset-right)); bottom: calc(var(--a-y) + env(safe-area-inset-bottom)); }
+    .btn.b { --s: var(--b-size); right: calc(var(--b-x) + env(safe-area-inset-right)); bottom: calc(var(--b-y) + env(safe-area-inset-bottom)); }
     .btn.act {
-      left: 0;
-      top: calc(var(--btn-size) * -0.42);
-      width: calc(var(--btn-size) * 0.42);
-      height: calc(var(--btn-size) * 0.42);
+      --s: var(--act-size);
+      right: calc(var(--act-x) + env(safe-area-inset-right));
+      bottom: calc(var(--act-y) + env(safe-area-inset-bottom));
       background: #2b2d33;
       border-color: #8a8e99;
-      font-size: calc(var(--btn-size) * 0.2);
+      font-size: calc(var(--s) * 0.45);
     }
     .btn.act.on { background: #e0362c; }
     .btn.on { background: #ff5a4c; transform: scale(0.94); }
@@ -440,20 +466,21 @@
         &#8661; = entrar en tuberías (hacia abajo, o saltando hacia una de arriba).
         Desliza el pulgar entre A y B para pulsar ambos. En los menús, &larr; &rarr; mueven la selección.</p>
       <div id="touch-opts">
-        <div class="sliders">
-          <div class="group">Flechas</div>
-          <label>Horizontal <input id="dpad-x" type="range" min="0" max="45" step="1"> <output></output></label>
-          <label>Vertical <input id="dpad-y" type="range" min="0" max="70" step="1"> <output></output></label>
-          <label>Tamaño <input id="dpad-size" type="range" min="15" max="60" step="1"> <output></output></label>
-          <div class="group">Botones A / B / acción</div>
-          <label>Horizontal <input id="btn-x" type="range" min="0" max="45" step="1"> <output></output></label>
-          <label>Vertical <input id="btn-y" type="range" min="0" max="70" step="1"> <output></output></label>
-          <label>Tamaño <input id="btn-size" type="range" min="15" max="60" step="1"> <output></output></label>
-          <div class="group">General</div>
-          <label>Opacidad % <input id="alpha" type="range" min="10" max="100" step="5"> <output></output></label>
-        </div>
+        <p class="hint orient-note">Ajustando la distribución para el modo <strong id="orient-name">horizontal</strong>.
+          Cada orientación guarda la suya: gira el móvil para ajustar la otra.</p>
+        <div class="sliders" id="touch-sliders"></div>
         <div class="row" style="margin-top:10px">
-          <button id="reset-touch" class="secondary" type="button">Restablecer posición</button>
+          <button id="reset-touch" class="secondary" type="button">Restablecer esta orientación</button>
+        </div>
+
+        <div class="templates">
+          <div class="group">Plantillas</div>
+          <div class="row">
+            <input id="tpl-name" type="text" maxlength="24" placeholder="Nombre de la plantilla" autocomplete="off">
+            <button id="tpl-save" class="secondary" type="button">Guardar actual</button>
+          </div>
+          <div id="tpl-msg" class="tpl-msg"></div>
+          <ul id="tpl-list"></ul>
         </div>
       </div>
 
