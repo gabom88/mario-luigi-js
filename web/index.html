@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Mario &amp; Luigi (JS)</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Mario &amp; Luigi">
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+      font-family: system-ui, sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #screen {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      outline: none;
+      background: #000;
+    }
+    [hidden] { display: none !important; }
+
+    /* portrait phones: game at the top, touch controls below */
+    body.portrait { align-items: flex-start; }
+    body.portrait #screen, body.portrait #crt {
+      margin-top: max(env(safe-area-inset-top), 4vh);
+    }
+
+    /* ---- CRT filter ---- */
+    #crt {
+      position: absolute;
+      pointer-events: none;
+      display: none;
+      z-index: 5;
+      overflow: hidden;
+    }
+    body.crt-on #crt { display: block; }
+    body.crt-on #screen { filter: contrast(1.12) saturate(1.18) brightness(1.06); }
+    #crt::before {
+      /* scanlines, one dark band per VGA line */
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(to bottom,
+        rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) calc(var(--line) * 0.55),
+        rgba(0, 0, 0, 0.32) calc(var(--line) * 0.55), rgba(0, 0, 0, 0.32) var(--line));
+    }
+    #crt::after {
+      /* phosphor mask, vignette and rounded tube corners */
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.55) 100%),
+        repeating-linear-gradient(to right,
+          rgba(255, 60, 60, 0.05) 0 1px, rgba(60, 255, 60, 0.05) 1px 2px, rgba(60, 60, 255, 0.05) 2px 3px);
+      border-radius: 3% / 4%;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+    }
+
+    /* ---- settings panel ---- */
+    #start {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.72);
+      padding: 16px;
+      box-sizing: border-box;
+      touch-action: pan-y;
+    }
+    .card {
+      position: relative;
+      z-index: 31;
+      width: min(34rem, 100%);
+      max-height: 100%;
+      overflow-y: auto;
+      box-sizing: border-box;
+      padding: 20px 22px;
+      border-radius: 12px;
+      background: #15161a;
+      border: 1px solid #2c2e36;
+      color: #e8e8ea;
+      user-select: none;
+    }
+    .card h1 { margin: 0 0 4px; font-size: 1.6rem; }
+    .card h2 {
+      margin: 22px 0 8px;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #9da0ab;
+    }
+    .card p { margin: 0; color: #a8abb5; line-height: 1.5; font-size: 0.9rem; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    button {
+      font: inherit;
+      color: inherit;
+    }
+    #play {
+      margin-top: 14px;
+      padding: 10px 28px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      border: 0;
+      border-radius: 8px;
+      background: #e0362c;
+      color: #fff;
+      cursor: pointer;
+    }
+    #play:hover { background: #f04438; }
+    .secondary {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #3a3d47;
+      background: #20222a;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .secondary:hover { background: #2a2d36; }
+    table { border-collapse: collapse; width: 100%; }
+    th {
+      text-align: left;
+      font-weight: 500;
+      padding: 4px 8px 4px 0;
+      color: #d0d2d8;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    td { padding: 3px 4px; width: 38%; }
+    td.sep {
+      padding-top: 12px;
+      color: #9da0ab;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .key {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #3a3d47;
+      background: #1d1f26;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-family: ui-monospace, Consolas, monospace;
+    }
+    .key:hover { border-color: #6b7080; }
+    .key.dup { color: #f5c542; border-color: #7a6320; }
+    .chars { display: grid; gap: 6px; }
+    .char-row { display: flex; align-items: center; gap: 8px; }
+    .char-row span { width: 5.5rem; font-size: 0.9rem; color: #d0d2d8; }
+    .char-row button {
+      flex: 1;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid #3a3d47;
+      background: #1d1f26;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .char-row button.sel.mario { background: #b8231b; border-color: #f0a49e; color: #fff; }
+    .char-row button.sel.luigi { background: #1f7a35; border-color: #9fe0ae; color: #fff; }
+    .key.capturing {
+      border-color: #e0362c;
+      background: #2d1715;
+      font-family: inherit;
+    }
+    #key-msg { min-height: 1.4em; margin-top: 6px; color: #f0b44c; font-size: 0.85rem; }
+    .hint { font-size: 0.8rem !important; margin-top: 6px !important; }
+    .switch { display: flex; gap: 10px; align-items: center; cursor: pointer; font-size: 0.95rem; }
+    .switch input { width: 18px; height: 18px; accent-color: #e0362c; flex: none; }
+    .switch small { color: #8b8e99; font-size: 0.78rem; margin-left: auto; text-align: right; }
+    .extras { display: grid; gap: 10px; }
+    .sliders {
+      display: grid;
+      grid-template-columns: auto 1fr 3ch;
+      gap: 6px 10px;
+      align-items: center;
+      margin-top: 10px;
+      font-size: 0.88rem;
+    }
+    .sliders .group {
+      grid-column: 1 / -1;
+      color: #9da0ab;
+      font-size: 0.8rem;
+      margin-top: 6px;
+    }
+    .sliders label { display: contents; }
+    .sliders input { width: 100%; accent-color: #e0362c; }
+    .sliders select {
+      width: 100%;
+      padding: 5px 6px;
+      border-radius: 6px;
+      border: 1px solid #3a3d47;
+      background: #1d1f26;
+      color: inherit;
+      font: inherit;
+    }
+    .sliders output { text-align: right; color: #9da0ab; font-variant-numeric: tabular-nums; }
+    kbd {
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 0 4px;
+      color: #fff;
+      font-size: 0.8em;
+    }
+
+    #gear {
+      position: fixed;
+      top: max(8px, env(safe-area-inset-top));
+      right: max(8px, env(safe-area-inset-right));
+      z-index: 25;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(0, 0, 0, 0.35);
+      color: #fff;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0.6;
+    }
+    #gear:hover { opacity: 1; }
+
+    /* ---- touch controls ---- */
+    #touch {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none;
+      opacity: var(--alpha, 0.55);
+    }
+    #touch.preview { z-index: 30; }
+    #touch.preview * { pointer-events: none !important; }
+    .dpad, .ab, .sys button { pointer-events: auto; touch-action: none; }
+    .dpad {
+      position: absolute;
+      left: calc(var(--dpad-x) + env(safe-area-inset-left));
+      bottom: calc(var(--dpad-y) + env(safe-area-inset-bottom));
+      width: calc(var(--dpad-size) * 1.5);
+      height: calc(var(--dpad-size) * 0.62);
+      display: flex;
+      gap: calc(var(--dpad-size) * 0.04);
+    }
+    .dpad .arm {
+      position: relative;
+      flex: 1;
+      background: #2b2d33;
+      border: 2px solid #8a8e99;
+      box-sizing: border-box;
+    }
+    .dpad .left { border-radius: 40% 10% 10% 40% / 50% 14% 14% 50%; }
+    .dpad .right { border-radius: 10% 40% 40% 10% / 14% 50% 50% 14%; }
+    .dpad .arm.on { background: #e0362c; }
+    .dpad .arm::after {
+      content: '';
+      position: absolute;
+      left: 50%; top: 50%;
+      border: calc(var(--dpad-size) * 0.11) solid transparent;
+      transform: translate(-50%, -50%);
+    }
+    .dpad .left::after { border-right-color: #c9ccd4; margin-left: -12%; }
+    .dpad .right::after { border-left-color: #c9ccd4; margin-left: 12%; }
+    .ab {
+      position: absolute;
+      right: calc(var(--btn-x) + env(safe-area-inset-right));
+      bottom: calc(var(--btn-y) + env(safe-area-inset-bottom));
+      width: calc(var(--btn-size) * 1.6);
+      height: var(--btn-size);
+    }
+    .btn {
+      position: absolute;
+      width: calc(var(--btn-size) * 0.62);
+      height: calc(var(--btn-size) * 0.62);
+      border-radius: 50%;
+      background: #b8231b;
+      border: 3px solid #f0a49e;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: calc(var(--btn-size) * 0.22);
+    }
+    .btn.b { left: 0; bottom: 0; }
+    .btn.a { right: 0; top: 0; }
+    .btn.act {
+      left: 0;
+      top: calc(var(--btn-size) * -0.42);
+      width: calc(var(--btn-size) * 0.42);
+      height: calc(var(--btn-size) * 0.42);
+      background: #2b2d33;
+      border-color: #8a8e99;
+      font-size: calc(var(--btn-size) * 0.2);
+    }
+    .btn.act.on { background: #e0362c; }
+    .btn.on { background: #ff5a4c; transform: scale(0.94); }
+    .sys {
+      position: absolute;
+      left: 50%;
+      bottom: calc(8px + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+    }
+    .sys button {
+      padding: 6px 12px;
+      border-radius: 14px;
+      border: 1px solid #8a8e99;
+      background: #2b2d33;
+      color: #e0e2e8;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .sys button.on { background: #e0362c; }
+
+    .error {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 40;
+      max-height: 40%;
+      overflow: auto;
+      margin: 0;
+      padding: 8px;
+      color: #f88;
+      background: #200;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="screen" width="320" height="200" tabindex="0"></canvas>
+  <div id="crt"></div>
+  <button id="gear" type="button" title="Controles" hidden>&#9881;</button>
+
+  <div id="start">
+    <div class="card">
+      <h1>Mario &amp; Luigi</h1>
+      <p>Port a JavaScript del juego de Mike Wiering (1994).</p>
+      <button id="play" type="button">Jugar</button>
+
+      <h2>Personajes</h2>
+      <div class="chars">
+        <div class="char-row" data-player="0">
+          <span>Player 1</span>
+          <button type="button" data-char="0" class="mario">Mario</button>
+          <button type="button" data-char="1" class="luigi">Luigi</button>
+        </div>
+        <div class="char-row" data-player="1">
+          <span>Player 2</span>
+          <button type="button" data-char="0" class="mario">Mario</button>
+          <button type="button" data-char="1" class="luigi">Luigi</button>
+        </div>
+      </div>
+
+      <h2>Controles de teclado</h2>
+      <table><tbody id="bindings"></tbody></table>
+      <div id="key-msg"></div>
+      <div class="row">
+        <button id="reset-keys" class="secondary" type="button">Restablecer teclas</button>
+      </div>
+      <p class="hint">
+        Haz clic en una tecla para cambiarla (<kbd>Supr</kbd> la borra, <kbd>Esc</kbd> cancela).
+        Una tecla con varias acciones se muestra en <span style="color:#f5c542">amarillo</span>
+        (por ejemplo correr y disparar, estilo NES); las teclas de sistema no se pueden
+        compartir. Los menús se recorren con Arriba/Abajo. También funciona con mando.
+      </p>
+
+      <h2>Pantalla</h2>
+      <div class="sliders">
+        <label>Sincronización
+          <select id="clock">
+            <option value="smooth">Suave (con el monitor)</option>
+            <option value="original">Original 70 Hz</option>
+          </select><span></span></label>
+        <label>Escalado
+          <select id="scale">
+            <option value="sharp">Nítido sin parpadeo</option>
+            <option value="pixel">Píxel exacto</option>
+          </select><span></span></label>
+      </div>
+      <p class="hint">«Suave» muestra cada frame del juego en un refresco del monitor: el scroll no
+        tiembla, pero en pantallas de 60 Hz el juego va un 14% más lento que en el PC original.
+        «Original» respeta los 70 fps exactos.</p>
+
+      <h2>Extras</h2>
+      <div class="extras">
+        <label class="switch"><input id="x-crt" type="checkbox"> Filtro CRT
+          <small>líneas de barrido y tubo de monitor VGA</small></label>
+        <label class="switch"><input id="x-sound" type="checkbox"> Sonido mejorado
+          <small>notas con eco en lugar del pitido del altavoz del PC</small></label>
+        <label class="switch"><input id="x-vibration" type="checkbox"> Vibración
+          <small>en móviles: daño, pisar enemigos, romper bloques</small></label>
+      </div>
+
+      <h2>Controles táctiles</h2>
+      <label class="switch"><input id="touch-on" type="checkbox"> Activar flechas y botones A/B</label>
+      <p class="hint">&larr; &rarr; caminar &middot; A = saltar &middot; B = correr y disparar &middot;
+        &#8661; = entrar en tuberías (hacia abajo, o saltando hacia una de arriba).
+        Desliza el pulgar entre A y B para pulsar ambos. En los menús, &larr; &rarr; mueven la selección.</p>
+      <div id="touch-opts">
+        <div class="sliders">
+          <div class="group">Flechas</div>
+          <label>Horizontal <input id="dpad-x" type="range" min="0" max="45" step="1"> <output></output></label>
+          <label>Vertical <input id="dpad-y" type="range" min="0" max="70" step="1"> <output></output></label>
+          <label>Tamaño <input id="dpad-size" type="range" min="15" max="60" step="1"> <output></output></label>
+          <div class="group">Botones A / B / acción</div>
+          <label>Horizontal <input id="btn-x" type="range" min="0" max="45" step="1"> <output></output></label>
+          <label>Vertical <input id="btn-y" type="range" min="0" max="70" step="1"> <output></output></label>
+          <label>Tamaño <input id="btn-size" type="range" min="15" max="60" step="1"> <output></output></label>
+          <div class="group">General</div>
+          <label>Opacidad % <input id="alpha" type="range" min="10" max="100" step="5"> <output></output></label>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button id="reset-touch" class="secondary" type="button">Restablecer posición</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "mario-luigi-js",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JavaScript port of Mike Wiering's Mario & Luigi (1994, Turbo Pascal)",
+  "type": "module",
+  "scripts": {
+    "start": "node serve.mjs 8080",
+    "convert": "node tools/convert.mjs",
+    "snap": "node tools/snap.mjs"
+  }
+}

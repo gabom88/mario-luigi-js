@@ -1,0 +1,8 @@
+# Original 1994 files: keep them byte for byte (DOS line endings, CP437)
+* -text
+# The JavaScript port is normal text with LF line endings
+web/** text=auto eol=lf
+*.md text eol=lf
+.github/** text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf

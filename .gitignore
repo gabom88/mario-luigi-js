@@ -1,0 +1,9 @@
+# Original DOS distribution files (not needed for the port)
+MARIOSRC.ZIP
+*.EXE
+*.exe
+
+# Local tooling output
+node_modules/
+snaps/
+*.log
