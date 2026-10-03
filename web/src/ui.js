@@ -544,7 +544,7 @@ export function openPanel() {
   for (const id of [...pointers.keys()]) endPointer(id);
   $('start').hidden = false;
   $('gear').hidden = true;
-  $('play').textContent = started ? 'Continuar' : 'Jugar';
+  $('play').textContent = started ? 'Continuar' : hooks.testMode ? 'Probar nivel' : 'Jugar';
   applyTouch();
   $('play').focus();
 }

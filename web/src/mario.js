@@ -19,6 +19,7 @@ import { RAW } from './data.js';
 import { randomize } from './pascal.js';
 import { extras } from './extras.js';
 import { SMB_LEVELS, smbLevel } from './smb.js';
+import { listMyLevels, getMyLevel, playArgs } from './levels.js';
 
 const NUM_LEV = 6;
 const LAST_LEV = 2 * NUM_LEV - 1;
@@ -118,13 +119,24 @@ const ST_LEVELS = 7;
 // normal game never starts directly (sub-areas, the "turbo" second round
 // with its own options, and the map behind the title screen).
 // Level 2 and 3 have empty sub-areas in the original source (no data).
-const LEVEL_LIST = [
+const BASE_LEVELS = [
   ...[1, 2, 3, 4, 5, 6].map((n) => ({ label: `LEVEL ${n}`, kind: 'level', n: n - 1, turbo: false })),
   ...[1, 4, 5, 6].map((n) => ({ label: `LEVEL ${n} AREA 2`, kind: 'area', n: n - 1 })),
   ...[1, 2, 3, 4, 5, 6].map((n) => ({ label: `LEVEL ${n} TURBO`, kind: 'level', n: n - 1, turbo: true })),
   { label: 'TITLE MAP', kind: 'title', n: 0 },
   ...SMB_LEVELS.map((id, i) => ({ label: `SMB ${id}`, kind: 'smb', n: i })),
 ];
+
+// Levels made with the editor ("Mis niveles") are added at the end
+const plain = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+  .replace(/[^ -~]/g, '').slice(0, 16);
+function levelList() {
+  return [
+    ...BASE_LEVELS,
+    ...listMyLevels().map((l) => ({ label: `+ ${plain(l.name)}`, kind: 'my', id: l.id, n: 0 })),
+  ];
+}
+let LEVEL_LIST = BASE_LEVELS;
 
 let SelectedWorld = null;
 
@@ -248,6 +260,7 @@ async function Intro() {
             if (Status !== OldStatus) {
               LevelSel = 0;
               LevelTop = 0;
+              LEVEL_LIST = levelList();
             }
             if (LevelSel < LevelTop) LevelTop = LevelSel;
             if (LevelSel > LevelTop + 4) LevelTop = LevelSel - 4;
@@ -501,8 +514,14 @@ async function playLevel(n, player) {
     RAW[`LEVEL_${b}`], RAW[`OPTIONS_${b}`], RAW[`OPTIONS_${b}`], player);
 }
 
-// Sub-area first (its exit pipe leads to the main area), or the title map.
+// Sub-area first (its exit pipe leads to the main area), the title map or
+// a level made with the editor.
 async function playSpecial(w, player) {
+  if (w.kind === 'my') {
+    const level = getMyLevel(w.id);
+    if (!level) return false;
+    return PlayWorld('x', 'E', ...playArgs(level), player);
+  }
   if (w.kind === 'title') {
     return PlayWorld('x', '0', RAW.INTRO_0, RAW.OPTIONS_0, RAW.OPTIONS_0,
       RAW.INTRO_0, RAW.OPTIONS_0, RAW.OPTIONS_0, player);
@@ -512,7 +531,30 @@ async function playSpecial(w, player) {
     RAW[`LEVEL_${a}`], RAW[`OPTIONS_${a}`], RAW[`OPT_${a}`], player);
 }
 
-export async function Main() {
+// Play test from the level editor: the level is replayed until it is
+// passed, the lives run out or Esc is pressed.
+async function runTest(level) {
+  VGA.ClearVGAMem();
+  InitPlayerFigures();
+  InitEnemyFigures();
+  NewData();
+  const d = B.Data;
+  d.NumPlayers = 1;
+  d.Lives[plMario] = 5;
+  d.Lives[plLuigi] = 0;
+  E.Turbo = false;
+  GameMode = 'original';
+  randomize();
+  const args = playArgs(level);
+  for (;;) {
+    await ShowPlayerName(plMario);
+    const passed = await PlayWorld('x', 'E', ...args, plMario);
+    if (passed || B.QuitGame || d.Lives[plMario] <= 0) break;
+  }
+  B.QuitGame = false;
+}
+
+export async function Main(testLevel = null) {
   KB.InitKeyBoard();
   B.Data.NumPlayers = 1;
   ReadConfig();
@@ -520,6 +562,11 @@ export async function Main() {
   KB.ResetKeyBoard();
 
   if (!VGA.InGraphicsMode) VGA.InitVGA();
+
+  if (testLevel) {
+    await runTest(testLevel);
+    return;
+  }
 
   do {
     VGA.ClearVGAMem();
@@ -571,7 +618,7 @@ export async function Main() {
             SelectedWorld = null;
             E.Turbo = false;
             Passed = await playSpecial(w, CurPlayer);
-            if (w.kind === 'title') EndGame = true;
+            if (w.kind === 'title' || w.kind === 'my') EndGame = true;
           } else if (smb) Passed = await playSmb(lev, CurPlayer);
           else if (lev >= 0 && lev < LEVELS.length) Passed = await playLevel(lev, CurPlayer);
           else EndGame = true;

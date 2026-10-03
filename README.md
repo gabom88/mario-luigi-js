@@ -31,13 +31,14 @@ Web oficial del juego original: **<https://wieringsoftware.nl/mario/index.html>*
 5. [Panel de ajustes](#panel-de-ajustes)
 6. [Menú del juego y LEVEL SELECT](#menú-del-juego-y-level-select)
    - [Modo START SMB 1](#modo-start-smb-1)
-7. [Trucos del original](#trucos-del-original)
-8. [Partidas guardadas y datos locales](#partidas-guardadas-y-datos-locales)
-9. [Cómo está hecho](#cómo-está-hecho)
-10. [Fidelidad y diferencias con el original](#fidelidad-y-diferencias-con-el-original)
-11. [Desarrollo](#desarrollo)
-12. [Estructura del repositorio](#estructura-del-repositorio)
-13. [Créditos y licencia](#créditos-y-licencia)
+7. [Editor de niveles](#editor-de-niveles)
+8. [Trucos del original](#trucos-del-original)
+9. [Partidas guardadas y datos locales](#partidas-guardadas-y-datos-locales)
+10. [Cómo está hecho](#cómo-está-hecho)
+11. [Fidelidad y diferencias con el original](#fidelidad-y-diferencias-con-el-original)
+12. [Desarrollo](#desarrollo)
+13. [Estructura del repositorio](#estructura-del-repositorio)
+14. [Créditos y licencia](#créditos-y-licencia)
 
 ---
 
@@ -92,6 +93,9 @@ Este repositorio incluye ese código fuente original (ver
 - **Mario o Luigi** a elegir para cada jugador.
 - **LEVEL SELECT** con todos los niveles, incluidos los que el juego no deja
   elegir.
+- **Editor de niveles** con todos los bloques del motor: edita los niveles
+  originales, los de SMB o crea los tuyos, pruébalos al instante y juégalos
+  desde el menú.
 - **Extras opcionales**: filtro CRT, sonido mejorado y vibración en móviles.
 - **App instalable (PWA)** con iconos hechos con los sprites del juego;
   funciona sin conexión.
@@ -223,6 +227,7 @@ deja elegir:
 | **LEVEL 1 … 6 TURBO** | La segunda vuelta que el juego desbloquea al terminarlo: enemigos y jugador más rápidos y variantes propias de los niveles. |
 | **TITLE MAP** | El pequeño escenario de la pantalla de título, jugable (Esc para salir). |
 | **SMB 1-1 … SMB 8-1** | Los niveles de *Super Mario Bros.*; al superar uno se sigue con el siguiente. |
+| **+ NOMBRE** | Tus niveles guardados con el [editor](#editor-de-niveles). |
 
 Las áreas secundarias de los niveles 2 y 3 existen en el código fuente pero
 están vacías (no tienen datos), por eso no aparecen. Desde LEVEL SELECT la
@@ -272,6 +277,90 @@ originales, en [`web/levels/smb/`](web/levels/smb/).
 
 ---
 
+## Editor de niveles
+
+**▶ [gabom88.github.io/mario-luigi-js/editor.html](https://gabom88.github.io/mario-luigi-js/editor.html)**
+(también desde el enlace «✏️ Editor de niveles» del panel de ajustes)
+
+![Editor de niveles con SMB 1-1](docs/screenshots/editor.jpg)
+
+El nivel se dibuja con **el propio motor del juego**, así que se ve
+exactamente como al jugarlo, incluidos los bordes automáticos del terreno.
+Lo que el motor no dibuja (enemigos, contenido de los bloques `?`, enlaces
+de tuberías, inicio del jugador) aparece como icono encima.
+
+**Abrir**: cualquier nivel original (con su área 2), el mapa del título,
+los 15 de *Super Mario Bros.* o tus niveles. Los del juego se editan como
+copia: al guardar se crean en *Mis niveles*.
+
+**Herramientas**
+
+| Herramienta | Tecla | Uso |
+|---|---|---|
+| ✏️ Pincel | B | Pinta el bloque elegido (arrastrando dibuja líneas) |
+| 🧽 Borrar | E | Vacía celdas (también con el botón derecho del ratón) |
+| 🪣 Rellenar | F | Rellena la zona contigua del mismo bloque |
+| ▭ Rectángulo | R | Rellena un rectángulo |
+| ⬚ Seleccionar | M | Selección para **copiar, cortar, pegar, borrar y voltear** (Ctrl+C / X / V, Supr) |
+| 💧 Coger | I | Toma el bloque de una celda (también Alt+clic) |
+| 🚩 Inicio | J | Dónde empieza Mario (clic donde van sus pies) |
+| ✋ Mover | H | Desplaza la vista (también con la rueda, el botón central o Espacio+arrastrar) |
+
+Más: **deshacer y rehacer** (Ctrl+Z / Ctrl+Y), zoom (+/−, Ctrl+rueda),
+cuadrícula (G) con una línea cada 16 columnas (una pantalla), probar (P),
+guardar (Ctrl+S). En el móvil, dos dedos desplazan y hacen zoom, y la paleta
+es un panel desplegable.
+
+**Paleta**: todos los bloques del motor, agrupados.
+
+- **Básico**: terreno A–D y moneda.
+- **Bloques**: `?`, usado, invisible, ladrillo, piedra, nota, X, madera y
+  pinchos.
+- **Tuberías**: las cuatro piezas y los **códigos de enlace**.
+- **Contenido de ?**: champiñón o flor, vida, estrella, veneno, 10 monedas y
+  convertir en nota.
+- **Enemigos**: Goomba, erizo, Koopas, tres pirañas, pez, bola de lava y
+  dos plataformas.
+- **Decoración**: hierba, vallas, palmeras, cascadas, árboles, lava y la
+  puerta EXIT.
+- **Especiales**: moneda alta, `?` con vida alta, topes de scroll y modo
+  turbo.
+
+Cada bloque muestra una ayuda al elegirlo.
+
+Cómo funcionan algunos códigos del motor:
+
+- **Bloque `?`**: da lo que haya en la celda **de encima** (champiñón, vida,
+  estrella…); si está vacía, una moneda.
+- **Tuberías**: en las dos celdas sobre la boca, la izquierda indica el
+  destino (**FIN** = salida del nivel, **→** = otra tubería de la misma
+  área, **⇄** = la otra área) y la derecha el **número de pareja**. Dos
+  tuberías con el mismo número están conectadas.
+- **Pirañas, peces y bolas de lava** se colocan 2 filas por encima de donde
+  aparecen.
+
+**Opciones del área** (⚙): cielo, fondo, tipo de suelo, decoración,
+horizonte, colores (tuberías, suelo, ladrillos, madera, bloque X, fondo,
+hierba), ancho del nivel (17 a 600 columnas), insertar o borrar columnas y
+crear o eliminar el área 2. «Copiar aspecto de» toma todo el estilo de un
+nivel existente. Las colinas del fondo (parallax) solo se ven al probar.
+
+**Probar** (▶): abre el juego con el nivel; al superarlo o salir con Esc
+vuelves al editor tal como lo dejaste.
+
+**Guardar y compartir**
+
+- **Guardar** lo añade a *Mis niveles* (en este navegador), que aparecen en
+  LEVEL SELECT.
+- **Archivo → Descargar .json / Copiar JSON / Importar**: para pasar niveles
+  entre dispositivos o compartirlos. El formato es legible: 13 filas de
+  texto con un carácter por bloque, como en `WORLDS.PAS`.
+- **Descargar para WORLDS.PAS**: el nivel y sus opciones como procedimientos
+  `db` de Turbo Pascal, listos para el código original.
+
+El trabajo en curso se guarda solo; al volver al editor está como lo
+dejaste.
+
 ## Trucos del original
 
 El código fuente original tiene trucos ocultos y funcionan igual en este
@@ -305,7 +394,8 @@ port. Para usarlos:
 
 ## Partidas guardadas y datos locales
 
-Todo se guarda en el `localStorage` del navegador, en tu dispositivo:
+Todo se guarda en el `localStorage` del navegador, en tu dispositivo
+(también *Mis niveles* y el trabajo en curso del editor):
 
 - Ajustes del panel: teclas, personajes, pantalla, extras y controles táctiles.
 - Sonido y marcador (también si los cambias jugando con Q o I).
@@ -360,6 +450,8 @@ Cada unidad tiene su módulo JavaScript:
 | `TXT.PAS`, `STATUS.PAS` | `txt.js`, `status.js` | Texto y marcador |
 | `MUSIC.PAS` | `music.js` + `sound.js` | Melodías y altavoz del PC (Web Audio) |
 | — | `smb.js`, `smbdata.js` | Niveles de *Super Mario Bros.* (VGLC) convertidos al formato del motor |
+| — | `levels.js` | Modelo de nivel común al juego y al editor: áreas, JSON, exportación Pascal, *Mis niveles* |
+| — | `editor/editor.js`, `editor/render.js`, `editor/catalog.js` | Editor de niveles: interfaz, dibujo con el motor y catálogo de bloques |
 | `KEYBOARD.PAS`, `JOYSTICK.PAS` | `keyboard.js`, `joystick.js` | Teclado remapeable y demo; mando (Gamepad API) |
 | `BUFFERS.PAS`, `VGA256.PAS` | `buffers.js`, `vga256.js` | Estado compartido, mapa del mundo; VGA |
 | — | `pascal.js` | `Random` de Turbo Pascal 7, `Round`, `div`… |
@@ -432,6 +524,7 @@ git no altere sus finales de línea ni su contenido.
 ```
 ├── web/                     El port a JavaScript (lo que se publica)
 │   ├── index.html           Página, panel de ajustes y estilos
+│   ├── editor.html          Editor de niveles
 │   ├── manifest.webmanifest Manifiesto de la app (PWA)
 │   ├── sw.js                Service worker (juego sin conexión)
 │   ├── serve.mjs            Servidor local

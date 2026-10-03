@@ -3,6 +3,7 @@
 import * as VGA from './vga256.js';
 import { initAudio } from './sound.js';
 import { Main } from './mario.js';
+import { getPlaytest } from './levels.js';
 import { initUI } from './ui.js';
 import { InitKeyBoard, setActionHandler } from './keyboard.js';
 import { setCrtHook, toggleFullscreen } from './extras.js';
@@ -76,9 +77,14 @@ window.addEventListener('orientationchange', () => setTimeout(fit, 200));
 fit();
 VGA.setPresentHook(present);
 
+// index.html?test=1: play test of the level being edited in the editor
+const testLevel = new URLSearchParams(location.search).has('test') ? getPlaytest() : null;
+
 function start() {
   initAudio();
-  Main().catch((e) => {
+  Main(testLevel).then(() => {
+    if (testLevel) location.href = 'editor.html';
+  }).catch((e) => {
     console.error(e);
     document.body.insertAdjacentHTML('beforeend',
       `<pre class="error">${String(e && e.stack ? e.stack : e)}</pre>`);
@@ -88,7 +94,7 @@ function start() {
 InitKeyBoard();
 setCrtHook(setCrt);
 setActionHandler('fullscreen', toggleFullscreen);
-initUI(start, { setScaleMode });
+initUI(start, { setScaleMode, testMode: !!testLevel });
 window.addEventListener('pointerdown', () => initAudio());
 
 // Installable app: offline cache (needs https or localhost)

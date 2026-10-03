@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#15161a">
+  <title>Editor de niveles — Mario &amp; Luigi (JS)</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <style>
+    :root {
+      --bg: #0f1013;
+      --panel: #17181d;
+      --panel2: #1e2027;
+      --line: #2c2e36;
+      --text: #e6e7ea;
+      --muted: #9a9daa;
+      --accent: #e0362c;
+      --sel: #f5c542;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button, select, input { font: inherit; color: inherit; }
+    a { color: inherit; text-decoration: none; }
+    button {
+      border: 1px solid #3a3d47;
+      background: var(--panel2);
+      border-radius: 6px;
+      padding: 5px 9px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button:hover { background: #2a2d36; }
+    button:disabled { opacity: 0.4; cursor: default; }
+    button.on { border-color: var(--accent); background: #3a1714; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    input[type=text], input[type=number], select {
+      background: var(--panel2);
+      border: 1px solid #3a3d47;
+      border-radius: 6px;
+      padding: 4px 6px;
+    }
+
+    #app {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      grid-template-rows: auto 1fr auto;
+      grid-template-areas: "top top" "side main" "side status";
+      height: 100%;
+    }
+    #top {
+      grid-area: top;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      padding: 6px 8px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+    #top .sep { width: 1px; height: 24px; background: var(--line); margin: 0 2px; }
+    #level-name { width: 170px; font-weight: 600; }
+    #dirty { color: var(--sel); font-size: 18px; line-height: 1; }
+    #side {
+      grid-area: side;
+      overflow-y: auto;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 8px;
+    }
+    #tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px; }
+    #tools button { padding: 6px 2px; font-size: 18px; line-height: 1; }
+    #tools button small { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+    #selection-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+    #selection-tools button { flex: 1; font-size: 12px; padding: 4px; }
+    .group-title {
+      margin: 10px 0 4px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+    .palette button {
+      position: relative;
+      padding: 2px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #6d8fb8;
+    }
+    .palette button canvas { image-rendering: pixelated; max-width: 100%; max-height: 100%; }
+    .palette button.on { outline: 2px solid var(--sel); outline-offset: 1px; border-color: var(--sel); }
+    .palette button .badge {
+      position: absolute;
+      right: 1px; bottom: 0;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 0 2px #000, 0 0 2px #000;
+    }
+    #info {
+      margin-top: 10px;
+      padding: 8px;
+      background: var(--panel2);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 60px;
+    }
+    #info strong { color: var(--text); display: block; margin-bottom: 2px; }
+
+    #main { grid-area: main; position: relative; overflow: hidden; background: #000; }
+    #viewport {
+      position: absolute;
+      inset: 0;
+      overflow: auto;
+    }
+    #spacer { height: 1px; width: 1px; }
+    #view {
+      position: absolute;
+      left: 0; top: 0;
+      image-rendering: pixelated;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    #status {
+      grid-area: status;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--panel);
+      border-top: 1px solid var(--line);
+    }
+    #status b { color: var(--text); font-weight: 500; }
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: 40px;
+      transform: translateX(-50%);
+      background: #26282f;
+      border: 1px solid #3a3d47;
+      padding: 8px 14px;
+      border-radius: 8px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      z-index: 60;
+      max-width: 90vw;
+    }
+    #toast.show { opacity: 1; }
+
+    /* dialogs */
+    dialog {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0;
+      width: min(560px, 94vw);
+      max-height: 90vh;
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+    dialog .dlg { padding: 16px 18px; overflow-y: auto; max-height: calc(90vh - 2px); }
+    dialog h2 { margin: 0 0 12px; font-size: 1.1rem; }
+    dialog h3 { margin: 16px 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+    .list { display: grid; gap: 4px; }
+    .list .item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel2);
+    }
+    .list .item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .list .item small { color: var(--muted); }
+    .form { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
+    .form label { color: var(--muted); font-size: 13px; }
+    .form .rgb { display: flex; gap: 4px; }
+    .form .rgb input { width: 60px; }
+    textarea {
+      width: 100%;
+      height: 140px;
+      background: var(--panel2);
+      color: var(--text);
+      border: 1px solid #3a3d47;
+      border-radius: 6px;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 11px;
+    }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    /* small screens: icon-only toolbar */
+    @media (max-width: 760px), (max-height: 520px) {
+      .lbl { display: none; }
+      #top { gap: 4px; padding: 4px 6px; }
+      #top button { padding: 4px 7px; }
+      #top .sep { display: none; }
+      #level-name { width: 110px; }
+      .wide-only { display: none; }
+    }
+    /* phones in portrait: palette as a drawer under the level */
+    @media (max-width: 760px) and (orientation: portrait) {
+      #app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto auto;
+        grid-template-areas: "top" "main" "side" "status";
+      }
+      #side {
+        border-right: 0;
+        border-top: 1px solid var(--line);
+        max-height: 40vh;
+      }
+      #side.collapsed { max-height: 54px; overflow: hidden; }
+      #tools { grid-template-columns: repeat(8, 1fr); }
+      .palette { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+    }
+    /* phones in landscape: narrow palette on the left */
+    @media (max-height: 520px) and (orientation: landscape) {
+      #app { grid-template-columns: 176px 1fr; }
+      #tools { grid-template-columns: repeat(4, 1fr); }
+      #tools button small { display: none; }
+      .palette { grid-template-columns: repeat(4, 1fr); }
+      #status { display: none; }
+    }
+    @media (min-width: 761px) and (min-height: 521px) {
+      .narrow-only { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="top">
+      <input id="level-name" type="text" maxlength="40" title="Nombre del nivel" autocomplete="off">
+      <span id="dirty" title="Cambios sin guardar"></span>
+      <button id="btn-open" title="Abrir un nivel">📂<span class="lbl"> Abrir</span></button>
+      <button id="btn-new" title="Nivel nuevo">＋<span class="lbl"> Nuevo</span></button>
+      <button id="btn-save" title="Guardar en «Mis niveles» (Ctrl+S)">💾<span class="lbl"> Guardar</span></button>
+      <button id="btn-saveas" class="wide-only" title="Guardar como un nivel nuevo">Guardar como…</button>
+      <button id="btn-play" class="primary" title="Probar el nivel en el juego (P)">▶<span class="lbl"> Probar</span></button>
+      <span class="sep"></span>
+      <button id="btn-undo" title="Deshacer (Ctrl+Z)">↶</button>
+      <button id="btn-redo" title="Rehacer (Ctrl+Y)">↷</button>
+      <span class="sep"></span>
+      <button id="btn-zoom-out" title="Alejar (-)">－</button>
+      <button id="btn-zoom-in" title="Acercar (+)">＋🔍</button>
+      <button id="btn-grid" title="Cuadrícula (G)">#</button>
+      <span class="sep"></span>
+      <button id="btn-area0" title="Área principal"><span class="lbl">Área </span>1</button>
+      <button id="btn-area1" title="Área 2 (a la que se llega por tubería)"><span class="lbl">Área </span>2</button>
+      <span class="sep"></span>
+      <button id="btn-options" title="Opciones del nivel: cielo, suelo, colores, tamaño">⚙<span class="lbl"> Opciones</span></button>
+      <button id="btn-export" title="Exportar / importar">⇅<span class="lbl"> Archivo</span></button>
+      <span class="sep"></span>
+      <a href="index.html"><button title="Volver al juego">🎮<span class="lbl"> Juego</span></button></a>
+    </div>
+
+    <div id="side">
+      <div id="tools"></div>
+      <div id="selection-tools">
+        <button id="btn-copy" title="Copiar (Ctrl+C)">Copiar</button>
+        <button id="btn-cut" title="Cortar (Ctrl+X)">Cortar</button>
+        <button id="btn-paste" title="Pegar (Ctrl+V)">Pegar</button>
+        <button id="btn-del" title="Borrar selección (Supr)">Borrar</button>
+        <button id="btn-flip" title="Voltear la selección en horizontal">⇋</button>
+      </div>
+      <div id="palette"></div>
+      <div id="info"></div>
+    </div>
+
+    <div id="main">
+      <div id="viewport"><div id="spacer"></div></div>
+      <canvas id="view"></canvas>
+    </div>
+
+    <div id="status">
+      <span>Celda <b id="st-cell">—</b></span>
+      <span><b id="st-code">—</b></span>
+      <span>Ancho <b id="st-width">—</b></span>
+      <span class="wide-only">Clic izq. pinta · clic der. borra · Alt+clic coge · rueda desplaza · Ctrl+rueda zoom</span>
+      <span class="narrow-only">Dos dedos: desplazar y zoom</span>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <dialog id="dlg-open"><div class="dlg">
+    <h2>Abrir nivel</h2>
+    <h3>Mis niveles</h3>
+    <div class="list" id="open-mine"></div>
+    <h3>Niveles del juego (se editan como copia)</h3>
+    <div class="list" id="open-builtin"></div>
+    <div class="actions"><button data-close>Cerrar</button></div>
+  </div></dialog>
+
+  <dialog id="dlg-options"><div class="dlg">
+    <h2>Opciones del área</h2>
+    <p class="hint">Cada área (1 y 2) tiene sus propias opciones. «Copiar aspecto» toma el cielo, el suelo y los colores de un nivel existente.
+      Las colinas y montañas del fondo se mueven con el scroll (parallax), así que solo se ven al <b>probar</b> el nivel.
+      Los colores son el primero de una rampa de 8 tonos de la paleta del juego.</p>
+    <div class="form" id="opt-form"></div>
+    <h3>Tamaño</h3>
+    <div class="form">
+      <label for="opt-width">Ancho (columnas)</label>
+      <div><input id="opt-width" type="number" min="17" max="600"> <button id="opt-width-apply">Aplicar</button></div>
+      <label>Columna en el cursor</label>
+      <div><button id="col-insert">Insertar columna</button> <button id="col-delete">Borrar columna</button></div>
+      <label>Área 2</label>
+      <div><button id="area2-create">Crear área 2</button> <button id="area2-delete">Eliminar área 2</button></div>
+    </div>
+    <div class="actions"><button data-close>Cerrar</button></div>
+  </div></dialog>
+
+  <dialog id="dlg-file"><div class="dlg">
+    <h2>Exportar e importar</h2>
+    <h3>Exportar</h3>
+    <div class="actions" style="justify-content:flex-start;margin-top:0">
+      <button id="exp-json">Descargar .json</button>
+      <button id="exp-copy">Copiar JSON</button>
+      <button id="exp-pas">Descargar para WORLDS.PAS</button>
+    </div>
+    <h3>Importar</h3>
+    <p class="hint">Un archivo .json exportado por este editor, o pega su contenido.</p>
+    <div class="actions" style="justify-content:flex-start;margin-top:0">
+      <button id="imp-file">Elegir archivo…</button>
+      <input id="imp-input" type="file" accept=".json,application/json" hidden>
+    </div>
+    <textarea id="imp-text" placeholder='{"format":"mario-luigi-level", ...}'></textarea>
+    <div class="actions">
+      <button id="imp-paste">Importar texto</button>
+      <button data-close>Cerrar</button>
+    </div>
+  </div></dialog>
+
+  <script type="module" src="src/editor/editor.js"></script>
+</body>
+</html>

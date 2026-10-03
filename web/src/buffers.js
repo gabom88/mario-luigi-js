@@ -87,7 +87,7 @@ export function newOptions() {
   };
 }
 
-function optionsFromBytes(b) {
+export function optionsFromBytes(b) {
   const g = (i) => b[i] ?? 0;
   const o = newOptions();
   o.InitX = g(0) | (g(1) << 8);

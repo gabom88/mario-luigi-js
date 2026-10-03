@@ -221,6 +221,32 @@ const scripts = {
     await frames(330);
     snap('smbmenu-level');
   },
+  // A level saved with the editor appears at the end of LEVEL SELECT
+  async mylevel() {
+    const store = new Map();
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    } });
+    const L = await import('../src/levels.js');
+    const lv = L.loadBuiltin('orig:1');
+    lv.name = 'Mi nivel de prueba';
+    for (let x = 4; x < 12; x++) lv.areas[0].cells[x * 13 + 6] = 0x2A; // a row of coins
+    L.saveMyLevel(lv);
+    const { Main } = await import('../src/mario.js');
+    Main().catch((e) => { errors.push(e); done = true; });
+    await frames(150);
+    await press('ArrowDown');
+    await press('ArrowDown');
+    await press('Enter');
+    await press('ArrowUp'); // wraps to the last entry: the saved level
+    await frames(5);
+    snap('mylevel-list');
+    await press('Enter');
+    await frames(300);
+    snap('mylevel-play');
+  },
   async demo() {
     const { Main } = await import('../src/mario.js');
     Main().catch((e) => { errors.push(e); done = true; });
