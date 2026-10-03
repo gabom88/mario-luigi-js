@@ -18,6 +18,7 @@ import { SetFont, TextWidth, WriteText, CenterX, Bold, Shadow } from './txt.js';
 import { RAW } from './data.js';
 import { randomize } from './pascal.js';
 import { extras } from './extras.js';
+import { SMB_LEVELS, smbLevel } from './smb.js';
 
 const NUM_LEV = 6;
 const LAST_LEV = 2 * NUM_LEV - 1;
@@ -110,6 +111,7 @@ const ST_LOAD = 3;
 const ST_ERASE = 4;
 const ST_OPTIONS = 5;
 const ST_NUMPLAYERS = 6;
+const ST_SMBPLAYERS = 8; // number of players for START SMB 1
 const ST_LEVELS = 7;
 
 // LEVEL SELECT: every world stored in WORLDS.PAS, including the ones the
@@ -121,9 +123,13 @@ const LEVEL_LIST = [
   ...[1, 4, 5, 6].map((n) => ({ label: `LEVEL ${n} AREA 2`, kind: 'area', n: n - 1 })),
   ...[1, 2, 3, 4, 5, 6].map((n) => ({ label: `LEVEL ${n} TURBO`, kind: 'level', n: n - 1, turbo: true })),
   { label: 'TITLE MAP', kind: 'title', n: 0 },
+  ...SMB_LEVELS.map((id, i) => ({ label: `SMB ${id}`, kind: 'smb', n: i })),
 ];
 
 let SelectedWorld = null;
+
+// 'original': the six levels of the game; 'smb': Super Mario Bros. levels
+let GameMode = 'original';
 
 async function Intro() {
   const Page = VGA.CurrentPage();
@@ -220,12 +226,22 @@ async function Intro() {
         if (Status !== OldStatus) Selected = 1;
         switch (Status) {
           case ST_MENU:
-            Menu[1] = 'START';
-            Menu[2] = 'LEVEL SELECT';
-            Menu[3] = 'OPTIONS';
-            Menu[4] = 'END';
+            Menu[1] = 'START ORIGINAL';
+            Menu[2] = 'START SMB 1';
+            Menu[3] = 'LEVEL SELECT';
+            Menu[4] = 'OPTIONS';
+            Menu[5] = 'END';
+            NumOptions = 5;
+            LastStatus = ST_MENU;
+            break;
+          case ST_SMBPLAYERS:
+            Menu[1] = 'ONE PLAYER';
+            Menu[2] = 'TWO PLAYERS';
+            Menu[3] = '';
+            Menu[4] = '';
             Menu[5] = '';
-            NumOptions = 4;
+            if (Status !== OldStatus) Selected = B.Data.NumPlayers;
+            NumOptions = 2;
             LastStatus = ST_MENU;
             break;
           case ST_LEVELS:
@@ -330,9 +346,10 @@ async function Intro() {
             case ST_MENU:
               switch (Selected) {
                 case 1: Status = ST_START; break;
-                case 2: Status = ST_LEVELS; break;
-                case 3: Status = ST_OPTIONS; break;
-                case 4:
+                case 2: Status = ST_SMBPLAYERS; break;
+                case 3: Status = ST_LEVELS; break;
+                case 4: Status = ST_OPTIONS; break;
+                case 5:
                   IntroDone = true;
                   B.QuitGame = true;
                   break;
@@ -359,16 +376,25 @@ async function Intro() {
               break;
             case ST_NUMPLAYERS:
               NextNumPlayers = Selected;
+              GameMode = 'original';
+              IntroDone = true;
+              break;
+            case ST_SMBPLAYERS:
+              NextNumPlayers = Selected;
+              GameMode = 'smb';
+              GameNumber = -1;
               IntroDone = true;
               break;
             case ST_LEVELS:
               SelectedWorld = LEVEL_LIST[LevelSel];
+              GameMode = SelectedWorld.kind === 'smb' ? 'smb' : 'original';
               GameNumber = -1;
               NextNumPlayers = 1;
               IntroDone = true;
               break;
             case ST_LOAD:
               GameNumber = Selected - 1;
+              GameMode = 'original';
               Config.Games[GameNumber].NumPlayers = 1;
               {
                 const g = Config.Games[GameNumber];
@@ -462,6 +488,13 @@ const LEVELS = [
   ['6', '4A', '4B'],
 ];
 
+// A Super Mario Bros. level (no second area: both maps are the same)
+async function playSmb(n, player) {
+  const id = SMB_LEVELS[n];
+  const { map, options } = smbLevel(id);
+  return PlayWorld(id[0], id[2], map, options, options, map, options, options, player);
+}
+
 async function playLevel(n, player) {
   const [num, a, b] = LEVELS[n];
   return PlayWorld('x', num, RAW[`LEVEL_${a}`], RAW[`OPTIONS_${a}`], RAW[`OPT_${a}`],
@@ -506,7 +539,7 @@ export async function Main() {
       d.Progress[plMario] = SelectedWorld.n + (SelectedWorld.turbo ? NUM_LEV : 0);
       d.Progress[plLuigi] = 0;
       d.NumPlayers = 1;
-      if (SelectedWorld.kind === 'level') SelectedWorld = null;
+      if (SelectedWorld.kind === 'level' || SelectedWorld.kind === 'smb') SelectedWorld = null;
     }
     if (d.NumPlayers === 2) {
       if (d.Progress[plMario] > d.Progress[plLuigi]) d.Progress[plLuigi] = d.Progress[plMario];
@@ -525,17 +558,22 @@ export async function Main() {
       if (d.NumPlayers === 1) d.Lives[plLuigi] = 0;
       for (CurPlayer = plMario; CurPlayer <= d.NumPlayers - 1; CurPlayer++) {
         if (!(EndGame || B.QuitGame) && d.Lives[CurPlayer] >= 1) {
-          E.Turbo = d.Progress[CurPlayer] >= NUM_LEV;
-          if (d.Progress[CurPlayer] > LAST_LEV) d.Progress[CurPlayer] = NUM_LEV;
+          // SMB mode: after 8-1 the levels start again, faster (like the
+          // second round of the original game)
+          const smb = GameMode === 'smb';
+          const count = smb ? SMB_LEVELS.length : NUM_LEV;
+          E.Turbo = d.Progress[CurPlayer] >= count;
+          if (d.Progress[CurPlayer] > 2 * count - 1) d.Progress[CurPlayer] = count;
           await ShowPlayerName(CurPlayer);
-          const lev = d.Progress[CurPlayer] % NUM_LEV;
+          const lev = d.Progress[CurPlayer] % count;
           if (SelectedWorld && SelectedWorld.kind !== 'level') {
             const w = SelectedWorld;
             SelectedWorld = null;
             E.Turbo = false;
             Passed = await playSpecial(w, CurPlayer);
             if (w.kind === 'title') EndGame = true;
-          } else if (lev >= 0 && lev < LEVELS.length) Passed = await playLevel(lev, CurPlayer);
+          } else if (smb) Passed = await playSmb(lev, CurPlayer);
+          else if (lev >= 0 && lev < LEVELS.length) Passed = await playLevel(lev, CurPlayer);
           else EndGame = true;
 
           if (Passed) d.Progress[CurPlayer]++;

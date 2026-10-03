@@ -153,6 +153,7 @@ const scripts = {
     Main().catch((e) => { errors.push(e); done = true; });
     await frames(150);
     await press('ArrowDown');
+    await press('ArrowDown');
     await frames(5);
     snap('menu-levelselect');
     await press('Enter');
@@ -164,6 +165,61 @@ const scripts = {
     await press('Enter');
     await frames(300);
     snap('area2-play');
+  },
+  // SMB=1-1 node tools/snap.mjs smb <dir>   (EXIT=1: start next to the exit pipe)
+  async smb() {
+    const id = process.env.SMB || '1-1';
+    const { smbLevel } = await import('../src/smb.js');
+    const { map, options } = smbLevel(id);
+    const opt = options.slice();
+    if (process.env.EXIT) {
+      const w = map.length / 13 | 0;
+      const x = (w - 5) * 20 + 10; // centred over the exit pipe
+      opt[0] = x & 0xFF; opt[1] = x >> 8;
+      opt[2] = (2 * 14) & 0xFF; opt[3] = 0;
+    }
+    InitPlayerFigures();
+    InitEnemyFigures();
+    B.Data.Lives[0] = 3;
+    let result = null;
+    PlayWorld(id[0], id[2], map, opt, opt, map, opt, opt, 0)
+      .then((r) => { result = r; done = true; })
+      .catch((e) => { errors.push(e); done = true; });
+    await frames(90);
+    snap(`smb-${id}-start`);
+    if (process.env.EXIT) {
+      // Mario falls onto the exit pipe; press down to enter it
+      await frames(40);
+      key('KeyS', true);
+      await frames(400);
+      key('KeyS', false);
+      console.log('EXIT RESULT', result, 'passed', B.Passed);
+      return;
+    }
+    key('KeyD', true);
+    for (let i = 1; i <= 3; i++) {
+      await frames(70);
+      await press('KeyM', 18);
+      snap(`smb-${id}-run${i}`);
+    }
+    key('KeyD', false);
+    B.QuitGame = true;
+  },
+  async smbmenu() {
+    const { Main } = await import('../src/mario.js');
+    const { PS } = await import('../src/play.js');
+    Main().catch((e) => { errors.push(e); done = true; });
+    await frames(150);
+    await press('ArrowDown');
+    await frames(5);
+    snap('smbmenu-menu');
+    await press('Enter');
+    await frames(5);
+    snap('smbmenu-players');
+    PS.Stat = true;
+    await press('Enter');
+    await frames(330);
+    snap('smbmenu-level');
   },
   async demo() {
     const { Main } = await import('../src/mario.js');

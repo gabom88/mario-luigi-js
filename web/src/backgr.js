@@ -95,7 +95,9 @@ function PutBackGr(Fill) {
   let OldXStart = Math.trunc(OldXView / Speed) + DX;
   X1Pos = u16(X1Pos);
   X2Pos = u16(X2Pos);
-  const map = (i) => dseg[u16(i)];
+  // Maps longer than the original ones (SMB 8-1) repeat the hill profile
+  // instead of reading past the end of BackGrMap.
+  const map = B.Options.WrapHills ? (i) => BackGrMap[u16(i) % (Max + 1)] : (i) => dseg[u16(i)];
 
   for (let count = 0; count < 4; count++) {
     const pl = VGA.planes[Bank];

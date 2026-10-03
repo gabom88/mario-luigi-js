@@ -32,7 +32,12 @@ export function ShowStatus() {
   WriteText(XView + 140 + 40 + 10, HEIGHT, [7], 14);
   WriteText(XView + 158 + 40 + 10, HEIGHT, strWidth(B.Data.Coins[p], 2), 31);
 
-  WriteText(XView + 258, HEIGHT, `LEVEL ${B.WorldNumber[2] ?? ' '}`, 31);
+  // Original levels are 'x-N'; Super Mario Bros. levels show world-level,
+  // like the line the author left commented out
+  if (B.WorldNumber[0] === 'x' || B.WorldNumber[0] === ' ')
+    WriteText(XView + 258, HEIGHT, `LEVEL ${B.WorldNumber[2] ?? ' '}`, 31);
+  else
+    WriteText(XView + 242, HEIGHT, `WORLD ${B.WorldNumber}`, 31);
 
   SetFont(0, 0);
   WriteText(XView + 46 + 4, HEIGHT, 'x', 31);

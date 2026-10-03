@@ -18,6 +18,7 @@ Web oficial del juego original: **<https://wieringsoftware.nl/mario/index.html>*
 | ![Nivel 3, con Koopas](docs/screenshots/level3.png) | ![Nivel 6, el castillo](docs/screenshots/level6.png) |
 | ![Nivel 2, subterráneo](docs/screenshots/level2.png) | ![Nivel 4, montañas](docs/screenshots/level4.png) |
 | ![LEVEL SELECT](docs/screenshots/level-select.png) | ![Área secundaria del castillo](docs/screenshots/castle-area.png) |
+| ![SMB 1-1 en el motor original](docs/screenshots/smb-1-1.png) | ![SMB 1-2, subterráneo](docs/screenshots/smb-1-2.png) |
 
 ---
 
@@ -29,6 +30,7 @@ Web oficial del juego original: **<https://wieringsoftware.nl/mario/index.html>*
 4. [Controles](#controles)
 5. [Panel de ajustes](#panel-de-ajustes)
 6. [Menú del juego y LEVEL SELECT](#menú-del-juego-y-level-select)
+   - [Modo START SMB 1](#modo-start-smb-1)
 7. [Trucos del original](#trucos-del-original)
 8. [Partidas guardadas y datos locales](#partidas-guardadas-y-datos-locales)
 9. [Cómo está hecho](#cómo-está-hecho)
@@ -76,6 +78,9 @@ Este repositorio incluye ese código fuente original (ver
 
 ## Qué ofrece este port
 
+- **Dos modos de juego**: *START ORIGINAL* (el juego de 1994) y
+  *START SMB 1*, con 15 niveles de *Super Mario Bros.* (NES) adaptados al
+  motor original.
 - **El juego completo**: menú, los 6 niveles con sus áreas secundarias,
   la segunda vuelta "turbo", 1 o 2 jugadores, partidas guardadas y la demo
   automática de la pantalla de título.
@@ -194,9 +199,12 @@ Es la pantalla inicial. Durante la partida se vuelve a abrir con el botón
 
 El menú es el del original, con una opción añadida:
 
-- **START**: *No save* (partida sin guardar, 1 o 2 jugadores),
-  *Game select* (3 ranuras de partida guardada) y *Erase*.
-- **LEVEL SELECT**: empezar en cualquier nivel (nuevo en este port).
+- **START ORIGINAL**: el juego de 1994. *No save* (partida sin guardar,
+  1 o 2 jugadores), *Game select* (3 ranuras de partida guardada) y *Erase*.
+- **START SMB 1**: los niveles de *Super Mario Bros.*, para 1 o 2 jugadores
+  (ver [abajo](#modo-start-smb-1)).
+- **LEVEL SELECT**: empezar en cualquier nivel de los dos modos (nuevo en
+  este port).
 - **OPTIONS**: sonido y marcador.
 - **END**: vuelve al título (en el navegador no hay DOS al que salir).
 
@@ -214,10 +222,49 @@ deja elegir:
 | **LEVEL 1/4/5/6 AREA 2** | Las zonas secundarias, a las que normalmente solo se llega por una tubería; su tubería de salida lleva al área principal. |
 | **LEVEL 1 … 6 TURBO** | La segunda vuelta que el juego desbloquea al terminarlo: enemigos y jugador más rápidos y variantes propias de los niveles. |
 | **TITLE MAP** | El pequeño escenario de la pantalla de título, jugable (Esc para salir). |
+| **SMB 1-1 … SMB 8-1** | Los niveles de *Super Mario Bros.*; al superar uno se sigue con el siguiente. |
 
 Las áreas secundarias de los niveles 2 y 3 existen en el código fuente pero
 están vacías (no tienen datos), por eso no aparecen. Desde LEVEL SELECT la
 partida es de un jugador y no se guarda.
+
+### Modo START SMB 1
+
+Quince niveles de *Super Mario Bros.* (NES) jugados con el motor, la física
+y los gráficos de *Mario & Luigi*: **1-1, 1-2, 1-3, 2-1, 3-1, 3-3, 4-1, 4-2,
+5-1, 5-3, 6-1, 6-2, 6-3, 7-1 y 8-1**. Son los que incluye el corpus del que
+salen; no hay castillos (x-4) ni niveles acuáticos. Al terminar el 8-1 la
+partida vuelve a empezar en modo turbo, como la segunda vuelta del original.
+
+Cómo se adaptaron:
+
+- **Origen**: los niveles en texto del
+  [Video Game Level Corpus (VGLC)](https://github.com/TheVGLC/TheVGLC/tree/master/Super%20Mario%20Bros),
+  carpeta `Processed` (licencia MIT). Se usa `Processed` y no `Paths`,
+  porque en `Paths` está dibujado encima el recorrido de un jugador y los
+  bloques ya golpeados.
+- **Tamaño**: los niveles de SMB miden 14 filas y la fila superior siempre
+  está vacía; sin ella encajan exactos en las 13 filas del motor. El motor
+  se amplió de 236 a 600 columnas para que quepa el 8-1 (373). Los niveles
+  originales no cambian.
+- **Bloques**: el suelo y los bloques duros son terreno del motor (con
+  bordes de hierba); las plataformas de una sola fila, tablones de madera;
+  los ladrillos se rompen; los `?` dan champiñón o flor y los `Q`,
+  monedas; los cañones son bloques de piedra.
+- **Enemigos**: Goombas, y Koopas verdes a partir del mundo 2 (rojos, que
+  se dan la vuelta en los bordes, en las copas de los árboles). Desde el
+  1-2 hay plantas piraña en las tuberías.
+- **Final**: el motor no tiene bandera. Se quita la base del mástil y en su
+  lugar hay una **tubería de salida**: súbete y pulsa **abajo** (o ⇅ en
+  táctil) para pasar al siguiente nivel.
+- **Aspecto**: cada nivel usa el cielo, el suelo y el fondo de uno de los
+  niveles originales: día con colinas, noche (3-1 y 6-1), subterráneo de
+  ladrillo (1-2 y 4-2), copas de árboles (x-3) y atardecer (7-1 y 8-1).
+- El marcador muestra **WORLD 1-1**, etc. (como una línea que el autor dejó
+  comentada en `STATUS.PAS`).
+
+La conversión está en [`web/src/smb.js`](web/src/smb.js); los textos
+originales, en [`web/levels/smb/`](web/levels/smb/).
 
 > Curiosidad: el orden de juego no coincide con los nombres del código. Los
 > niveles 4, 5 y 6 del juego son `Level_5`, `Level_6` y `Level_4` de
@@ -312,6 +359,7 @@ Cada unidad tiene su módulo JavaScript:
 | `BLOCKS.PAS`, `TMPOBJ.PAS`, `GLITTER.PAS` | `blocks.js`, `tmpobj.js`, `glitter.js` | Bloques golpeados, monedas y fragmentos, destellos |
 | `TXT.PAS`, `STATUS.PAS` | `txt.js`, `status.js` | Texto y marcador |
 | `MUSIC.PAS` | `music.js` + `sound.js` | Melodías y altavoz del PC (Web Audio) |
+| — | `smb.js`, `smbdata.js` | Niveles de *Super Mario Bros.* (VGLC) convertidos al formato del motor |
 | `KEYBOARD.PAS`, `JOYSTICK.PAS` | `keyboard.js`, `joystick.js` | Teclado remapeable y demo; mando (Gamepad API) |
 | `BUFFERS.PAS`, `VGA256.PAS` | `buffers.js`, `vga256.js` | Estado compartido, mapa del mundo; VGA |
 | — | `pascal.js` | `Random` de Turbo Pascal 7, `Round`, `div`… |
@@ -361,6 +409,8 @@ Todo está en `web/` y no tiene dependencias externas.
 |---|---|
 | `npm start` | Servidor local en <http://localhost:8080/> (`serve.mjs`) |
 | `npm run convert` | Regenera `src/data.js` a partir de los archivos originales |
+| `node tools/smb-import.mjs` | Regenera `src/smbdata.js` a partir de `levels/smb/*.txt` |
+| `SMB=1-1 node tools/snap.mjs smb <carpeta>` | Prueba un nivel de SMB sin navegador (`EXIT=1` empieza sobre la tubería de salida) |
 | `node tools/icons.mjs` | Regenera los iconos de la app a partir de los sprites |
 | `node tools/snap.mjs level1 <carpeta>` | Ejecuta el juego sin navegador y guarda capturas PNG (`LEVEL=0..5` elige nivel, `LUIGI=1` usa a Luigi) |
 | `node tools/snap.mjs intro\|levelselect\|demo <carpeta>` | Recorre el menú, el LEVEL SELECT o la demo y guarda capturas |
@@ -386,6 +436,7 @@ git no altere sus finales de línea ni su contenido.
 │   ├── sw.js                Service worker (juego sin conexión)
 │   ├── serve.mjs            Servidor local
 │   ├── icons/               Iconos generados con los sprites
+│   ├── levels/smb/          Niveles de Super Mario Bros. del VGLC (MIT)
 │   ├── src/                 Código del juego (ver "Cómo está hecho")
 │   └── tools/               Conversor de datos, iconos y arnés de pruebas
 ├── docs/screenshots/        Capturas para este README
@@ -417,6 +468,10 @@ No se incluyen `MARIOSRC.ZIP` ni los ejecutables de DOS (`GRED.EXE`,
 - **Port a JavaScript**: Gabo
   ([@gabom88](https://github.com/gabom88)), desarrollado con Claude
   (Anthropic).
+- **Niveles de *Super Mario Bros.* en texto**: *The Video Game Level
+  Corpus* (VGLC) de Adam Summerville, Santiago Ontañón y Sam Snodgrass,
+  licencia MIT ([`web/levels/smb/LICENSE-VGLC.md`](web/levels/smb/LICENSE-VGLC.md)).
+  El diseño original de esos niveles es de Nintendo.
 - *Mario* y *Luigi* son marcas registradas de **Nintendo**. Este es un
   proyecto de aficionado, sin ánimo de lucro y sin relación con Nintendo.
 

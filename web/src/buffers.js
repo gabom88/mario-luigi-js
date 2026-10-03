@@ -8,6 +8,11 @@ export const NH = 16;
 export const NV = 13;
 
 export const MaxWorldSize = 236;
+// Room for longer maps than the original (Super Mario Bros. 8-1 has 373
+// columns). Original levels are shorter than MaxWorldSize, so for them
+// nothing changes. 600 columns still keep the screen below the background
+// save stack in video memory.
+export const WorldCols = 600;
 
 export const EX = 1;
 export const EY1 = 8;
@@ -39,7 +44,7 @@ export const isHidden = (c) => c === 0x24; // '$'
 
 // --- World map: array [-EX .. MaxWorldSize - 1 + EX, -EY1 .. NV - 1 + EY2] of Char
 
-const WX = MaxWorldSize + 2 * EX;
+const WX = WorldCols + 2 * EX;
 const WY = NV + EY1 + EY2;
 export const WORLD_SIZE = WX * WY;
 
@@ -78,6 +83,7 @@ export function newOptions() {
     C2r: 0, C2g: 0, C2b: 0, C3r: 0, C3g: 0, C3b: 0,
     BrickColor: 0, WoodColor: 0, XBlockColor: 0,
     BuildWall: false, XSize: 0,
+    WrapHills: false, // repeat the hill profile on maps longer than the original ones
   };
 }
 
@@ -136,7 +142,7 @@ export function ReadWorld(Map, Wb, Opt) {
     for (let j = -EY1; j <= NV - 1 + EY2; j++)
       Wb.set(i, j, 0x40); // '@'
   let X = 0;
-  while ((Map[X * NV] ?? 0) !== 0 && X < MaxWorldSize) {
+  while ((Map[X * NV] ?? 0) !== 0 && X < WorldCols) {
     for (let i = 1; i <= NV; i++)
       Wb.set(X, NV - i, Map[X * NV + i - 1]);
     Wb.set(X, -EY1, 0);
@@ -145,6 +151,7 @@ export function ReadWorld(Map, Wb, Opt) {
     X++;
   }
   B.Options.XSize = X;
+  B.Options.WrapHills = X > MaxWorldSize;
   for (let i = X; i <= X + EX - 1; i++)
     for (let j = -EY1; j <= NV - 1 + EY2; j++)
       Wb.set(i, j, 0x40);
