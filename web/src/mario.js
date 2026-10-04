@@ -95,6 +95,7 @@ function WriteConfig() {
 
 async function Demo() {
   NewData();
+  B.Versus = false;
   E.Turbo = false;
   B.Data.Progress[plMario] = 5;
   KB.PlayMacro();
@@ -114,6 +115,7 @@ const ST_OPTIONS = 5;
 const ST_NUMPLAYERS = 6;
 const ST_SMBPLAYERS = 8; // number of players for START SMB 1
 const ST_LEVELS = 7;
+const ST_VERSUS = 9; // VERSUS: choose the original or the SMB levels
 
 // LEVEL SELECT: every world stored in WORLDS.PAS, including the ones the
 // normal game never starts directly (sub-areas, the "turbo" second round
@@ -160,8 +162,10 @@ async function Intro() {
   let LevelSel = 0;
   let LevelTop = 0;
   SelectedWorld = null;
-  const Menu = ['', '', '', '', '', ''];
-  const BG = [[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]];
+  const Menu = ['', '', '', '', '', '', ''];
+  const BG = [[0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]];
+  B.Versus = false;
+  let NextVersus = false;
 
   const Up = () => {
     if (Selected === 1) {
@@ -240,10 +244,11 @@ async function Intro() {
           case ST_MENU:
             Menu[1] = 'START ORIGINAL';
             Menu[2] = 'START SMB 1';
-            Menu[3] = 'LEVEL SELECT';
-            Menu[4] = 'OPTIONS';
-            Menu[5] = 'END';
-            NumOptions = 5;
+            Menu[3] = 'START VERSUS';
+            Menu[4] = 'LEVEL SELECT';
+            Menu[5] = 'OPTIONS';
+            Menu[6] = 'END';
+            NumOptions = 6;
             LastStatus = ST_MENU;
             break;
           case ST_SMBPLAYERS:
@@ -252,6 +257,7 @@ async function Intro() {
             Menu[3] = '';
             Menu[4] = '';
             Menu[5] = '';
+            Menu[6] = '';
             if (Status !== OldStatus) Selected = B.Data.NumPlayers;
             NumOptions = 2;
             LastStatus = ST_MENU;
@@ -265,6 +271,7 @@ async function Intro() {
             if (LevelSel < LevelTop) LevelTop = LevelSel;
             if (LevelSel > LevelTop + 4) LevelTop = LevelSel - 4;
             for (let i = 1; i <= 5; i++) Menu[i] = LEVEL_LIST[LevelTop + i - 1]?.label ?? '';
+            Menu[6] = '';
             Selected = LevelSel - LevelTop + 1;
             NumOptions = 5;
             LastStatus = ST_MENU;
@@ -275,6 +282,7 @@ async function Intro() {
             Menu[3] = '';
             Menu[4] = '';
             Menu[5] = '';
+            Menu[6] = '';
             NumOptions = 2;
             LastStatus = ST_MENU;
             break;
@@ -284,6 +292,7 @@ async function Intro() {
             Menu[3] = 'ERASE';
             Menu[4] = '';
             Menu[5] = '';
+            Menu[6] = '';
             NumOptions = 3;
             LastStatus = ST_MENU;
             break;
@@ -293,6 +302,7 @@ async function Intro() {
             Menu[3] = '';
             Menu[4] = '';
             Menu[5] = '';
+            Menu[6] = '';
             if (Status !== OldStatus) Selected = B.Data.NumPlayers;
             NumOptions = 2;
             LastStatus = ST_START;
@@ -318,13 +328,24 @@ async function Intro() {
             }
             Menu[4] = '';
             Menu[5] = '';
+            Menu[6] = '';
             NumOptions = 3;
             LastStatus = ST_START;
+            break;
+          case ST_VERSUS:
+            Menu[1] = 'ORIGINAL LEVELS';
+            Menu[2] = 'SMB 1 LEVELS';
+            Menu[3] = '';
+            Menu[4] = '';
+            Menu[5] = '';
+            Menu[6] = '';
+            NumOptions = 2;
+            LastStatus = ST_MENU;
             break;
         }
         wd = 0;
         xp = 0;
-        const widest = Status === ST_LEVELS ? LEVEL_LIST.map((l) => l.label) : Menu.slice(1, 6);
+        const widest = Status === ST_LEVELS ? LEVEL_LIST.map((l) => l.label) : Menu.slice(1, 7);
         for (const text of widest) {
           const j = TextWidth(text);
           if (j > wd) {
@@ -360,9 +381,10 @@ async function Intro() {
               switch (Selected) {
                 case 1: Status = ST_START; break;
                 case 2: Status = ST_SMBPLAYERS; break;
-                case 3: Status = ST_LEVELS; break;
-                case 4: Status = ST_OPTIONS; break;
-                case 5:
+                case 3: Status = ST_VERSUS; break;
+                case 4: Status = ST_LEVELS; break;
+                case 5: Status = ST_OPTIONS; break;
+                case 6:
                   IntroDone = true;
                   B.QuitGame = true;
                   break;
@@ -395,6 +417,13 @@ async function Intro() {
             case ST_SMBPLAYERS:
               NextNumPlayers = Selected;
               GameMode = 'smb';
+              GameNumber = -1;
+              IntroDone = true;
+              break;
+            case ST_VERSUS:
+              NextNumPlayers = 1;
+              NextVersus = true;
+              GameMode = Selected === 2 ? 'smb' : 'original';
               GameNumber = -1;
               IntroDone = true;
               break;
@@ -433,9 +462,9 @@ async function Intro() {
         Update = true;
       }
 
-      for (let k = 1; k <= 5; k++) if (BG[Page][k] !== 0) VGA.PopBackGr(BG[Page][k]);
+      for (let k = 1; k <= 6; k++) if (BG[Page][k] !== 0) VGA.PopBackGr(BG[Page][k]);
 
-      for (let k = 1; k <= 5; k++) {
+      for (let k = 1; k <= 6; k++) {
         if (Menu[k] !== '') {
           const i = xp;
           const j = 56 + 14 * k;
@@ -466,6 +495,7 @@ async function Intro() {
 
   if (GameNumber !== -1) Object.assign(B.Data, cloneData(Config.Games[GameNumber]));
   B.Data.NumPlayers = NextNumPlayers;
+  B.Versus = NextVersus && IntroDone && !B.QuitGame;
 }
 
 async function ShowPlayerName(Player) {

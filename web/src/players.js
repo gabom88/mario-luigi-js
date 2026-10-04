@@ -62,10 +62,11 @@ let keyAlt = false;
 let keyCtrl = false;
 let keySpace = false;
 
-const SaveScreen = [
+const newSaveScreen = () => [
   { Visible: false, XPos: 0, YPos: 0, BackGrAddr: 0 },
   { Visible: false, XPos: 0, YPos: 0, BackGrAddr: 0 },
 ];
+let SaveScreen = newSaveScreen();
 
 let X = 0, Y = 0, OldX = 0, OldY = 0, DemoX = 0, DemoY = 0;
 let DemoCounter1 = 0, DemoCounter2 = 0, XVel = 0, YVel = 0;
@@ -73,6 +74,150 @@ let Direction = 0, Status = 0, WalkingMode = 0, Counter = 0, WalkCount = 0;
 let HighJump = false, HitEnemy = false, Jumped = false, Fired = false;
 let FireCounter = 0, StarCounter = 0, GrowCounter = 0, BlinkCounter = 0;
 let AtCh1 = 0x20, AtCh2 = 0x20, Below1 = 0x20, Below2 = 0x20;
+
+// --- VERSUS: two players --------------------------------------------------
+// The unit keeps the state of one player in its variables (like the
+// original). In VERSUS each player has a saved copy of that state and
+// selectPlayer loads one or the other before moving or drawing it.
+
+export const VS = {
+  cur: 0, // player whose state is loaded
+  slots: [null, null],
+  down: [false, false], // dead, waiting to reappear
+  respawn: [0, 0], // frames left until it reappears
+  died: false, // set when the loaded player has just died
+};
+
+const E_KEYS = ['Star', 'cdChamp', 'cdLife', 'cdFlower', 'cdStar', 'cdEnemy', 'cdHit', 'cdLift',
+  'cdStopJump', 'PlayerX1', 'PlayerY1', 'PlayerX2', 'PlayerY2', 'PlayerXVel', 'PlayerYVel'];
+
+// (Re)starting player: no pending collision codes from its last life
+function initFresh(InitX, InitY, Name) {
+  InitPlayer(InitX, InitY, Name);
+  for (const k of E_KEYS) if (k.startsWith('cd')) E[k] = 0;
+  B.Demo = dmNoDemo;
+}
+
+function snapshot() {
+  const e = {};
+  for (const k of E_KEYS) e[k] = E[k];
+  return {
+    X, Y, OldX, OldY, DemoX, DemoY, DemoCounter1, DemoCounter2, XVel, YVel,
+    Direction, Status, WalkingMode, Counter, WalkCount, HighJump, HitEnemy, Jumped, Fired,
+    FireCounter, StarCounter, GrowCounter, BlinkCounter, AtCh1, AtCh2, Below1, Below2,
+    keyLeft, keyRight, keyUp, keyDown, keyAlt, keyCtrl, keySpace, SaveScreen,
+    Player: B.Player,
+    Demo: B.Demo,
+    PL: {
+      Blinking: PL.Blinking, Growing: PL.Growing, InPipe: PL.InPipe, PipeCode: PL.PipeCode.slice(),
+      MapX: PL.MapX, MapY: PL.MapY, Small: PL.Small,
+    },
+    E: e,
+  };
+}
+
+function restore(c) {
+  ({
+    X, Y, OldX, OldY, DemoX, DemoY, DemoCounter1, DemoCounter2, XVel, YVel,
+    Direction, Status, WalkingMode, Counter, WalkCount, HighJump, HitEnemy, Jumped, Fired,
+    FireCounter, StarCounter, GrowCounter, BlinkCounter, AtCh1, AtCh2, Below1, Below2,
+    keyLeft, keyRight, keyUp, keyDown, keyAlt, keyCtrl, keySpace, SaveScreen,
+  } = c);
+  B.Player = c.Player;
+  B.Demo = c.Demo;
+  Object.assign(PL, c.PL);
+  PL.PipeCode = c.PL.PipeCode.slice();
+  Object.assign(E, c.E);
+}
+
+// Loads the state of player i (0 or 1). Outside VERSUS it does nothing.
+export function selectPlayer(i) {
+  if (!B.Versus || i === VS.cur) return;
+  VS.slots[VS.cur] = snapshot();
+  restore(VS.slots[i]);
+  VS.cur = i;
+}
+
+// Saved state of the player that is not loaded
+export const otherPlayer = (i) => VS.slots[i];
+
+// Both players start at (InitX, InitY), player 2 one block to the right
+// when there is room for it.
+export function InitVersus(InitX, InitY) {
+  VS.cur = 0;
+  VS.down = [false, false];
+  VS.respawn = [0, 0];
+  VS.died = false;
+  SaveScreen = newSaveScreen();
+  initFresh(InitX, InitY, 0);
+  VS.slots[0] = snapshot();
+  const free = (x) => [0, 1].every((k) => !canHoldYou(WorldMap.get(Math.trunc((x + k * (W - 1)) / W),
+    Math.trunc((InitY + H) / H))) && !canHoldYou(WorldMap.get(Math.trunc((x + k * (W - 1)) / W),
+    Math.trunc((InitY + 2 * H - 1) / H))));
+  SaveScreen = newSaveScreen();
+  initFresh(free(InitX + W) ? InitX + W : InitX, InitY, 1);
+  VS.slots[1] = snapshot();
+  restore(VS.slots[0]);
+}
+
+// After a pipe both players come out of the pipe the loaded one entered.
+export function InitVersusAtPipe(InitX, InitY) {
+  const { MapX, MapY, PipeCode } = PL;
+  const lead = VS.cur;
+  for (const i of [1 - lead, lead]) {
+    selectPlayer(i);
+    initFresh(InitX, InitY, i);
+    PL.InPipe = true;
+    PL.MapX = MapX;
+    PL.MapY = MapY;
+    PL.PipeCode = PipeCode.slice();
+  }
+  VS.down = [false, false];
+  VS.respawn = [0, 0];
+}
+
+// The loaded player reappears at (NewX, NewY), blinking (it cannot be hurt
+// for a moment).
+export function Respawn(NewX, NewY) {
+  initFresh(NewX, NewY, VS.cur);
+  PL.InPipe = false;
+  PL.Blinking = true;
+  BlinkCounter = 0;
+}
+
+export const playerX = () => X;
+export const playerY = () => Y;
+
+// Keeps the loaded player between MinX and MaxX (the VERSUS camera)
+export function ClampPlayer(MinX, MaxX) {
+  if (X < MinX) {
+    X = MinX;
+    if (XVel < 0) XVel = 0;
+  } else if (X > MaxX) {
+    X = MaxX;
+    if (XVel > 0) XVel = 0;
+  } else return;
+  E.PlayerX1 = X + XVel;
+  E.PlayerX2 = E.PlayerX1 + W - 1;
+  E.PlayerXVel = XVel;
+}
+
+// Codes 254 / 255 below the map stop the screen from scrolling past them
+// while the player (top at PlayerY1) is next to a wall there.
+export function ViewLocked(NewXView, OldXView, PlayerY1) {
+  if (NewXView < OldXView
+    && WorldMap.get(Math.trunc(NewXView / W), NV) === 254
+    && WorldMap.get(Math.trunc(NewXView / W), round(PlayerY1 / H)) !== 0x20) return true;
+  return NewXView > OldXView
+    && WorldMap.get(Math.trunc((NewXView - 1) / W) + 16, NV) === 255
+    && WorldMap.get(Math.trunc((NewXView - 1) / W) + 16, round(PlayerY1 / H)) !== 0x20;
+}
+
+// A player fell into a hole or finished dying
+function PlayerDown() {
+  if (B.Versus) VS.died = true;
+  else B.GameDone = true;
+}
 
 // PictureBuffer [plMario..plLuigi, mdSmall..mdFire, 0..3, dirLeft..dirRight]
 const PIC = W * 2 * H;
@@ -239,7 +384,7 @@ export function DoDemo() {
       DemoCounter1++;
       if (DemoCounter1 % 7 === 0) YVel++;
       Y += YVel;
-      if (Y > NV * H) B.GameDone = true;
+      if (Y > NV * H) PlayerDown();
       break;
   }
 }
@@ -637,26 +782,39 @@ export function MovePlayer() {
   let OldDir = Direction;
   let OldXVel = XVel;
 
-  ReadJoystick();
-
   const LastKeyLeft = keyLeft;
   const LastKeyRight = keyRight;
 
-  keyLeft = KB.kbLeft() || J.jsLeft;
-  keyRight = KB.kbRight() || J.jsRight;
-  // The recorded demo (DEMOKEYS.OBJ) was made with an earlier build that
-  // polled Left/Right twice per frame (all their counts are even and add up
-  // to twice the other keys). Reading them twice during playback makes the
-  // demo replay exactly as recorded instead of Mario dying after 6 seconds.
-  if (KB.PlayingMacro()) {
+  if (B.Versus && B.Player === 1) {
+    // Player 2: its own keys / touch controls and the second gamepad
+    ReadJoystick(1);
+    const k = KB.p2Keys();
+    keyLeft = k.left || J.jsLeft;
+    keyRight = k.right || J.jsRight;
+    keyUp = k.up || J.jsUp;
+    keyDown = k.down || J.jsDown;
+    keyAlt = k.jump || J.jsButton1;
+    keyCtrl = k.run || J.jsButton2;
+    keySpace = k.fire || J.jsButton2;
+  } else {
+    // In VERSUS player 1 uses only the first gamepad
+    ReadJoystick(B.Versus ? 0 : -1);
     keyLeft = KB.kbLeft() || J.jsLeft;
     keyRight = KB.kbRight() || J.jsRight;
+    // The recorded demo (DEMOKEYS.OBJ) was made with an earlier build that
+    // polled Left/Right twice per frame (all their counts are even and add up
+    // to twice the other keys). Reading them twice during playback makes the
+    // demo replay exactly as recorded instead of Mario dying after 6 seconds.
+    if (KB.PlayingMacro()) {
+      keyLeft = KB.kbLeft() || J.jsLeft;
+      keyRight = KB.kbRight() || J.jsRight;
+    }
+    keyUp = KB.kbUp() || J.jsUp;
+    keyDown = KB.kbDown() || J.jsDown;
+    keyAlt = KB.kbAlt() || J.jsButton1;
+    keyCtrl = KB.kbCtrl() || J.jsButton2;
+    keySpace = KB.kbSpace() || J.jsButton2;
   }
-  keyUp = KB.kbUp() || J.jsUp;
-  keyDown = KB.kbDown() || J.jsDown;
-  keyAlt = KB.kbAlt() || J.jsButton1;
-  keyCtrl = KB.kbCtrl() || J.jsButton2;
-  keySpace = KB.kbSpace() || J.jsButton2;
 
   if (keyRight && !LastKeyRight && Direction === dirLeft) {
     OldDir = dirRight;
@@ -713,7 +871,7 @@ export function MovePlayer() {
   }
 
   if (Y + YVel >= NV * H) {
-    B.GameDone = true;
+    PlayerDown();
     StartMusic(DeadMusic);
   }
 
@@ -736,26 +894,24 @@ export function MovePlayer() {
   X += XVel;
   Y += YVel;
 
-  const OldXView = B.XView;
-  B.XView = B.XView - byte(KB.kbLeftShift()) + byte(KB.kbRightShift());
-  if (X + W + SCROLL_AT > B.XView + 320) B.XView = X + W + SCROLL_AT - 320;
-  if (X < B.XView + SCROLL_AT) B.XView = X - SCROLL_AT;
-  if (B.XView - OldXView > MAX_SPEED + byte(E.Turbo)) B.XView = OldXView + MAX_SPEED + byte(E.Turbo);
-  if (B.XView - OldXView < -MAX_SPEED - byte(E.Turbo)) B.XView = OldXView - MAX_SPEED - byte(E.Turbo);
-  if (B.XView < 0) {
-    B.XView = 0;
+  if (B.Versus) {
+    // the camera follows both players (versus.js)
     if (X < 0) X = 0;
-  }
+  } else {
+    const OldXView = B.XView;
+    B.XView = B.XView - byte(KB.kbLeftShift()) + byte(KB.kbRightShift());
+    if (X + W + SCROLL_AT > B.XView + 320) B.XView = X + W + SCROLL_AT - 320;
+    if (X < B.XView + SCROLL_AT) B.XView = X - SCROLL_AT;
+    if (B.XView - OldXView > MAX_SPEED + byte(E.Turbo)) B.XView = OldXView + MAX_SPEED + byte(E.Turbo);
+    if (B.XView - OldXView < -MAX_SPEED - byte(E.Turbo)) B.XView = OldXView - MAX_SPEED - byte(E.Turbo);
+    if (B.XView < 0) {
+      B.XView = 0;
+      if (X < 0) X = 0;
+    }
 
-  if (B.XView > (B.Options.XSize - 16) * W) B.XView = (B.Options.XSize - 16) * W;
-  if (B.XView < OldXView
-    && WorldMap.get(Math.trunc(B.XView / W), NV) === 254
-    && WorldMap.get(Math.trunc(B.XView / W), round(E.PlayerY1 / H)) !== 0x20)
-    B.XView = OldXView;
-  if (B.XView > OldXView
-    && WorldMap.get(Math.trunc((B.XView - 1) / W) + 16, NV) === 255
-    && WorldMap.get(Math.trunc((B.XView - 1) / W) + 16, round(E.PlayerY1 / H)) !== 0x20)
-    B.XView = OldXView;
+    if (B.XView > (B.Options.XSize - 16) * W) B.XView = (B.Options.XSize - 16) * W;
+    if (ViewLocked(B.XView, OldXView, E.PlayerY1)) B.XView = OldXView;
+  }
 
   E.PlayerX1 = X + XVel;
   E.PlayerX2 = E.PlayerX1 + W - 1;

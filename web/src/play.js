@@ -5,7 +5,10 @@ import {
   B, W, H, NH, NV, WorldMap, SaveWorldMap, ReadWorld, Swap, InitLevelScore, Beep, isPipeCode,
   BeeperOn, BeeperOff, PlayerName, mdSmall, dmNoDemo,
 } from './buffers.js';
-import { PL, InitPlayer, DrawPlayer, ErasePlayer, DoDemo, MovePlayer } from './players.js';
+import {
+  PL, InitPlayer, DrawPlayer, ErasePlayer, DoDemo, MovePlayer, InitVersus, InitVersusAtPipe,
+} from './players.js';
+import { VersusStep, DrawBoth, EraseBoth, resetFocus } from './versus.js';
 import { InitTempObj, ShowTempObj, HideTempObj, MoveTempObj, RunRemove, AddLife } from './tmpobj.js';
 import { InitBlocks, EraseBlocks, DrawBlocks, MoveBlocks } from './blocks.js';
 import {
@@ -89,7 +92,10 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
     ReadWorld(Map1, WorldMap, Opt1b);
   }
 
-  InitPlayer(B.Options.InitX, B.Options.InitY, Player);
+  if (B.Versus) {
+    resetFocus();
+    InitVersus(B.Options.InitX, B.Options.InitY);
+  } else InitPlayer(B.Options.InitX, B.Options.InitY, Player);
   PL.MapX = B.Options.InitX;
   PL.MapY = B.Options.InitY;
 
@@ -346,7 +352,10 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
       if (B.Options.Stars !== 0) ShowStars();
 
       ShowEnemies();
-      if (!OnlyDraw) DrawPlayer();
+      if (!OnlyDraw) {
+        if (B.Versus) DrawBoth();
+        else DrawPlayer();
+      }
       await VGA.ShowPage();
     }
 
@@ -405,7 +414,8 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
       if (ShowObjects) HideTempObj();
       HideStatus();
       if (ShowScore) HideTotalBack();
-      ErasePlayer();
+      if (B.Versus) EraseBoth();
+      else ErasePlayer();
       if (ShowObjects) {
         HideEnemies();
         EraseBlocks();
@@ -414,7 +424,8 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
       B.LavaCounter = (B.LavaCounter + 1) & 0xFF;
 
       if (!Waiting) {
-        if (B.Demo === dmNoDemo) {
+        if (B.Versus) VersusStep();
+        else if (B.Demo === dmNoDemo) {
           MoveEnemies();
           MovePlayer();
         } else DoDemo();
@@ -437,6 +448,7 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
         } else if (B.GameDone) {
           B.Data.Lives[Player]--;
           B.Data.Mode[Player] = mdSmall;
+          if (B.Versus) B.Data.Mode[1] = mdSmall;
           B.TextCounter = 0;
           B.Data.Score[Player] += B.LevelScore;
           Waiting = true;
@@ -493,7 +505,8 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
         DrawBlocks();
         ShowEnemies();
       }
-      DrawPlayer();
+      if (B.Versus) DrawBoth();
+      else DrawPlayer();
 
       if (ShowScore) ShowTotalBack();
       if (TextStatus) ShowStatus();
@@ -554,7 +567,9 @@ export async function PlayWorld(N1, N2, Map1, Opt1, Opt1b, Map2, Opt2, Opt2b, Pl
           }
         }
 
-        InitPlayer(PL.MapX * W + (W >> 1), (PL.MapY - 1) * H, Player);
+        // VERSUS: both players come out of the pipe the other one took
+        if (B.Versus) InitVersusAtPipe(PL.MapX * W + (W >> 1), (PL.MapY - 1) * H);
+        else InitPlayer(PL.MapX * W + (W >> 1), (PL.MapY - 1) * H, Player);
 
         VGA.SetView(B.XView, B.YView);
         VGA.SetYOffset(VGA.YBASE);

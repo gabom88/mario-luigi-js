@@ -1,7 +1,7 @@
 // Port of STATUS.PAS: the status line (name, lives, score, coins, level).
 
 import * as VGA from './vga256.js';
-import { B, PlayerName } from './buffers.js';
+import { B, PlayerName, dataSlot } from './buffers.js';
 import { SetFont, WriteText, Bold } from './txt.js';
 import { strWidth } from './pascal.js';
 
@@ -15,7 +15,7 @@ export function InitStatus() {
 export function ShowStatus() {
   const HEIGHT = 6;
   const XView = B.XView;
-  const p = B.Player;
+  const p = dataSlot();
   BackGrAddr[VGA.CurrentPage()] = VGA.PushBackGr(XView, HEIGHT, VGA.SCREEN_WIDTH, 9);
   SetFont(0, Bold);
   WriteText(XView + 10 + 4, HEIGHT, PlayerName[B.Character[p]], 31);

@@ -154,6 +154,7 @@ const scripts = {
     await frames(150);
     await press('ArrowDown');
     await press('ArrowDown');
+    await press('ArrowDown');
     await frames(5);
     snap('menu-levelselect');
     await press('Enter');
@@ -181,6 +182,7 @@ const scripts = {
     InitPlayerFigures();
     InitEnemyFigures();
     B.Data.Lives[0] = 3;
+    B.Versus = !!process.env.VERSUS; // VERSUS=1: two players
     let result = null;
     PlayWorld(id[0], id[2], map, opt, opt, map, opt, opt, 0)
       .then((r) => { result = r; done = true; })
@@ -239,6 +241,7 @@ const scripts = {
     await frames(150);
     await press('ArrowDown');
     await press('ArrowDown');
+    await press('ArrowDown');
     await press('Enter');
     await press('ArrowUp'); // wraps to the last entry: the saved level
     await frames(5);
@@ -246,6 +249,183 @@ const scripts = {
     await press('Enter');
     await frames(300);
     snap('mylevel-play');
+  },
+  // VERSUS from the title menu: player 1 (D, M) and player 2 (arrows, '.')
+  // run at the same time; the camera follows both.
+  async versus() {
+    const { Main } = await import('../src/mario.js');
+    const { VS } = await import('../src/players.js');
+    const { PS } = await import('../src/play.js');
+    Main().catch((e) => { errors.push(e); done = true; });
+    await frames(150);
+    await press('ArrowDown');
+    await press('ArrowDown');
+    await frames(5);
+    snap('versus-menu');
+    await press('Enter');
+    await frames(5);
+    snap('versus-levels');
+    PS.Stat = true;
+    if (process.env.SMB) await press('ArrowDown');
+    await press('Enter');
+    await frames(330);
+    snap('versus-start');
+    const log = (t) => console.log(t, 'versus', B.Versus, 'XView', B.XView, 'lives', B.Data.Lives[0],
+      'down', VS.down.join(','), 'score', B.Data.Score[0], 'coins', B.Data.Coins[0]);
+    log('start');
+    // only player 1 runs: player 2 is held at the left edge of the screen
+    key('KeyD', true);
+    for (let i = 1; i <= 3; i++) {
+      await frames(60);
+      if (i === 2) await press('KeyM', 20);
+      snap(`versus-p1-${i}`);
+      log(`p1 run ${i}`);
+    }
+    // now player 2 runs too
+    key('ArrowRight', true);
+    for (let i = 1; i <= 8; i++) {
+      await frames(70);
+      if (i % 2 === 0) {
+        await press('Period', 20);
+        await press('KeyM', 20);
+      }
+      snap(`versus-both-${i}`);
+      log(`both run ${i}`);
+    }
+    key('KeyD', false);
+    key('ArrowRight', false);
+    B.QuitGame = true;
+    await frames(200);
+  },
+  // VERSUS: player 2 dies alone (costs a life, reappears next to player 1)
+  async versusdeath() {
+    const { Main } = await import('../src/mario.js');
+    const { VS, selectPlayer } = await import('../src/players.js');
+    const { E } = await import('../src/enemies.js');
+    const { PS } = await import('../src/play.js');
+    Main().catch((e) => { errors.push(e); done = true; });
+    await frames(150);
+    await press('ArrowDown');
+    await press('ArrowDown');
+    await press('Enter');
+    PS.Stat = true;
+    await press('Enter');
+    await frames(330);
+    const log = (t) => console.log(t, 'lives', B.Data.Lives[0], 'down', VS.down.join(','),
+      'respawn', VS.respawn.join(','), 'demo', B.Demo, 'GameDone', B.GameDone);
+    key('KeyD', true);
+    await frames(40);
+    selectPlayer(1);
+    E.cdHit = 1; // player 2 is hit (small: dies)
+    selectPlayer(0);
+    await frames(30);
+    snap('vd-dying');
+    log('dying');
+    await frames(90);
+    snap('vd-down');
+    log('down');
+    await frames(120);
+    snap('vd-respawn');
+    log('respawned');
+    // then player 1 dies too, alone: player 2 keeps playing
+    selectPlayer(0);
+    E.cdHit = 1;
+    await frames(150);
+    snap('vd-p1-down');
+    log('p1 down');
+    // and player 2 as well while player 1 is down: the level restarts
+    selectPlayer(1);
+    E.cdHit = 1;
+    selectPlayer(0);
+    await frames(150);
+    snap('vd-both');
+    log('both');
+    key('KeyD', false);
+    B.QuitGame = true;
+    await frames(200);
+  },
+  // VERSUS: player 1 goes down the pipe to area 2 of level 1 ($E1) and
+  // player 2, far away, comes along
+  async versuspipe() {
+    const map = RAW.LEVEL_1A;
+    let px = -1, py = -1;
+    for (let x = 0; map[x * 13]; x++)
+      for (let i = 2; i <= 13; i++) // pipe entry: '0' just below it
+        if (map[x * 13 + i - 1] === 0xE1 && map[x * 13 + i - 2] === 0x30) { px = x; py = 13 - i; }
+    console.log('pipe at', px, py);
+    const opt = RAW.OPTIONS_1A.slice();
+    const x = px * 20 + 10;
+    opt[0] = x & 0xFF; opt[1] = x >> 8;
+    opt[2] = (py - 2) * 14; opt[3] = 0;
+    InitPlayerFigures();
+    InitEnemyFigures();
+    B.Data.Lives[0] = 3;
+    B.Versus = true;
+    const { VS, selectPlayer, playerX, playerY } = await import('../src/players.js');
+    PlayWorld('x', '1', RAW.LEVEL_1A, opt, opt, RAW.LEVEL_1B, RAW.OPTIONS_1B, RAW.OPTIONS_1B, 0)
+      .then(() => { done = true; })
+      .catch((e) => { errors.push(e); done = true; });
+    await frames(90);
+    key('ArrowLeft', true); // player 2 walks away
+    await frames(60);
+    key('ArrowLeft', false);
+    snap('vp-before');
+    const pos = () => [0, 1].map((i) => { selectPlayer(i); return `${playerX()},${playerY()}`; }).join(' ');
+    console.log('before', pos(), 'XView', B.XView);
+    selectPlayer(0);
+    key('KeyS', true);
+    await frames(250);
+    key('KeyS', false);
+    await frames(150);
+    snap('vp-after');
+    console.log('after', pos(), 'XView', B.XView, 'down', VS.down.join(','));
+    selectPlayer(0);
+    B.QuitGame = true;
+    await frames(100);
+  },
+  // Frames for the README gameplay GIF: START VERSUS with scripted input for
+  // both players. PLAN="frame:code:down|up,..." overrides the default plan.
+  // Frames go to <outdir>/rec-NNNN.png (320x200).
+  async versusrec() {
+    const { Main } = await import('../src/mario.js');
+    Main().catch((e) => { errors.push(e); done = true; });
+    await frames(150);
+    let n = 0;
+    const rec = () => {
+      VGA.renderFrame(frame32);
+      savePNG(path.join(outDir, `rec-${String(n++).padStart(4, '0')}.png`), 320, 200, frame, 1);
+    };
+    const recFrames = async (k) => {
+      for (let i = 0; i < k && !done; i++) {
+        await frames(1);
+        if (VGA.getFrameCounter() % 3 === 0) rec();
+      }
+    };
+    const tap = async (code) => {
+      key(code, true);
+      await recFrames(3);
+      key(code, false);
+      await recFrames(12);
+    };
+    await recFrames(20);
+    await tap('ArrowDown');
+    await tap('ArrowDown');
+    await recFrames(25);
+    await tap('Enter');
+    await recFrames(25);
+    await tap('Enter');
+    await recFrames(320); // player name and level fade in
+    const plan = (process.env.PLAN || '0:KeyD:1,30:ArrowRight:1').split(',').map((t) => {
+      const [f, code, d] = t.split(':');
+      return { f: Number(f), code, down: d === '1' };
+    });
+    const total = Number(process.env.LEN || 700);
+    for (let f = 0; f < total && !done; f++) {
+      for (const p of plan) if (p.f === f) key(p.code, p.down);
+      await recFrames(1);
+    }
+    console.log('recorded', n, 'frames; lives', B.Data.Lives[0], 'XView', B.XView);
+    B.QuitGame = true;
   },
   async demo() {
     const { Main } = await import('../src/mario.js');

@@ -607,7 +607,9 @@ function Check(i) {
   }
 }
 
-export function MoveEnemies() {
+// collide = false: only move them; VERSUS then calls CollideEnemies once
+// for each player.
+export function MoveEnemies(collide = true) {
   TimeCounter = (TimeCounter + 1) & 0xFF;
   let n = ActiveEnemies.length;
   for (let i = 1; i <= n; i++) {
@@ -739,8 +741,13 @@ export function MoveEnemies() {
     }
   }
 
-  // Collisions with the player
-  n = ActiveEnemies.length;
+  if (collide) CollideEnemies();
+  ActiveEnemies = ActiveEnemies.filter((k) => Enemy[k].Tp !== tpDead);
+}
+
+// Collisions with the player (the one whose state is loaded in E)
+export function CollideEnemies() {
+  const n = ActiveEnemies.length;
   for (let i = 1; i <= n; i++) {
     const j = ActiveEnemies[i - 1];
     const e = Enemy[j];
@@ -841,8 +848,6 @@ export function MoveEnemies() {
         }
     }
   }
-
-  ActiveEnemies = ActiveEnemies.filter((k) => Enemy[k].Tp !== tpDead);
 }
 
 export function StartEnemies(X, Dir) {

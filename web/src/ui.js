@@ -11,16 +11,27 @@ const STORE_KEY = 'mario-luigi-controls';
 // bindings are discarded once, the other settings are kept.
 const STORE_VERSION = 2;
 
-// Touch layout items. x / y are measured from the screen edge given by
-// 'anchor' (vw from the side, vh from the bottom); size is in vmin.
-const LAYOUT_ITEMS = [
-  { id: 'dpad', label: 'Flechas ← →', anchor: 'left', size: [15, 60] },
-  { id: 'a', label: 'Botón A (saltar)', anchor: 'right', size: [8, 40] },
-  { id: 'b', label: 'Botón B (correr y disparar)', anchor: 'right', size: [8, 40] },
-  { id: 'act', label: 'Botón ⇅ (tuberías)', anchor: 'right', size: [6, 30] },
+// Touch controls: one set for player 1 and another one (optional) for
+// player 2 in VERSUS. Item ids of player 2 end in '2'.
+const PADS = [
+  { n: 1, suffix: '', title: 'Player 1', alpha: 'alpha' },
+  { n: 2, suffix: '2', title: 'Player 2', alpha: 'alpha2' },
 ];
 
+// Touch layout items. x / y are measured from the screen edge given by
+// 'anchor' (vw from the side, vh from the bottom); size is in vmin.
+// Positions are set by dragging the controls, sizes with sliders.
+const ITEM_TYPES = [
+  { type: 'dpad', label: 'Flechas ← →', anchor: 'left', size: [15, 60] },
+  { type: 'a', label: 'Botón A', anchor: 'right', size: [8, 40] },
+  { type: 'b', label: 'Botón B', anchor: 'right', size: [8, 40] },
+  { type: 'act', label: 'Botón Acción ⇅', anchor: 'right', size: [6, 30] },
+];
+const LAYOUT_ITEMS = PADS.flatMap((p) => ITEM_TYPES.map((t) => ({ ...t, id: t.type + p.suffix, pad: p.n })));
+const ALPHA_KEYS = PADS.map((p) => p.alpha);
+
 // One layout per orientation, so portrait and landscape can differ.
+// Player 2 starts above player 1.
 const DEFAULT_LAYOUTS = {
   landscape: {
     alpha: 0.55,
@@ -28,6 +39,11 @@ const DEFAULT_LAYOUTS = {
     a: { x: 4, y: 22, size: 19 },
     b: { x: 16, y: 6, size: 19 },
     act: { x: 17, y: 38, size: 12 },
+    alpha2: 0.55,
+    dpad2: { x: 4, y: 52, size: 28 },
+    a2: { x: 4, y: 66, size: 15 },
+    b2: { x: 14, y: 52, size: 15 },
+    act2: { x: 15, y: 80, size: 10 },
   },
   portrait: {
     alpha: 0.55,
@@ -35,11 +51,17 @@ const DEFAULT_LAYOUTS = {
     a: { x: 4, y: 16, size: 19 },
     b: { x: 26, y: 8, size: 19 },
     act: { x: 30, y: 23, size: 12 },
+    alpha2: 0.55,
+    dpad2: { x: 4, y: 36, size: 30 },
+    a2: { x: 4, y: 44, size: 17 },
+    b2: { x: 26, y: 36, size: 17 },
+    act2: { x: 30, y: 50, size: 11 },
   },
 };
 
 const DEFAULT_TOUCH = {
   enabled: false,
+  p2: false, // second set of controls for player 2 (VERSUS)
   layouts: DEFAULT_LAYOUTS,
 };
 
@@ -68,7 +90,7 @@ const layout = () => settings.touch.layouts[orientation()];
 function validLayout(l, fallback) {
   const out = clone(fallback);
   if (!l || typeof l !== 'object') return out;
-  if (typeof l.alpha === 'number') out.alpha = l.alpha;
+  for (const k of ALPHA_KEYS) if (typeof l[k] === 'number') out[k] = l[k];
   for (const it of LAYOUT_ITEMS) {
     for (const k of ['x', 'y', 'size']) {
       if (typeof l[it.id]?.[k] === 'number') out[it.id][k] = l[it.id][k];
@@ -103,6 +125,7 @@ function load() {
     if (s.extras) settings.extras = { ...settings.extras, ...s.extras };
     if (s.touch) {
       if (typeof s.touch.enabled === 'boolean') settings.touch.enabled = s.touch.enabled;
+      if (typeof s.touch.p2 === 'boolean') settings.touch.p2 = s.touch.p2;
       if (s.touch.layouts) {
         for (const o of ['portrait', 'landscape'])
           settings.touch.layouts[o] = validLayout(s.touch.layouts[o], DEFAULT_LAYOUTS[o]);
@@ -161,13 +184,16 @@ const RESERVED = new Set(['Escape', 'Tab', 'Pause']);
 // --- touch overlay ---------------------------------------------------------
 
 let touchLayer;
-let dpadEl;
-let btnA;
-let btnB;
-let btnAct;
 let panelOpen = true;
+let editing = false; // moving the controls (full screen, panel hidden)
+let panelTab = 'game'; // tab of the settings panel: 'game' or 'touch'
 
-const pointers = new Map(); // pointerId -> { kind, actions: Set }
+// Elements of each set of controls: pads[n] = { root, dpad, a, b, act }
+const pads = {};
+const itemEl = (it) => pads[it.pad][it.type];
+const padOn = (n) => n === 1 || settings.touch.p2;
+
+const pointers = new Map(); // pointerId -> { kind, pad, actions: Set }
 
 function rectOf(el, grow = 0) {
   const r = el.getBoundingClientRect();
@@ -178,28 +204,32 @@ function rectOf(el, grow = 0) {
 
 const inside = (p, r) => p.x >= r.l && p.x <= r.r && p.y >= r.t && p.y <= r.b;
 
-function dpadActions(p) {
+// Action id for a set of controls: player 2 uses its own actions
+const act = (pad, id) => (pad === 2 ? `${id}2` : id);
+
+function dpadActions(p, pad) {
   // Only left / right: up and down are rarely needed (pipes), see the
   // action button. In menus the arrows move the selection up and down.
-  const r = rectOf(dpadEl);
+  const r = rectOf(pads[pad].dpad);
   const nx = (p.x - (r.l + r.w / 2)) / (r.w / 2);
   const s = new Set();
-  if (nx < -0.06) s.add(KB.K.menuMode ? 'up' : 'left');
-  if (nx > 0.06) s.add(KB.K.menuMode ? 'down' : 'right');
+  if (nx < -0.06) s.add(KB.K.menuMode ? 'up' : act(pad, 'left'));
+  if (nx > 0.06) s.add(KB.K.menuMode ? 'down' : act(pad, 'right'));
   return s;
 }
 
-function buttonActions(p) {
+function buttonActions(p, pad) {
+  const { a, b, act: x } = pads[pad];
   const s = new Set();
-  if (inside(p, rectOf(btnA, 0.15))) s.add('jump');
-  if (inside(p, rectOf(btnB, 0.15))) {
-    s.add('run');
-    s.add('fire');
+  if (inside(p, rectOf(a, 0.15))) s.add(act(pad, 'jump'));
+  if (inside(p, rectOf(b, 0.15))) {
+    s.add(act(pad, 'run'));
+    s.add(act(pad, 'fire'));
   }
   // Action: up + down together enters a pipe from below or from above
-  if (!KB.K.menuMode && inside(p, rectOf(btnAct, 0.1))) {
-    s.add('up');
-    s.add('down');
+  if (!KB.K.menuMode && inside(p, rectOf(x, 0.1))) {
+    s.add(act(pad, 'up'));
+    s.add(act(pad, 'down'));
   }
   return s;
 }
@@ -207,7 +237,7 @@ function buttonActions(p) {
 function updatePointer(id, p) {
   const st = pointers.get(id);
   if (!st) return;
-  const next = st.kind === 'dpad' ? dpadActions(p) : buttonActions(p);
+  const next = st.kind === 'dpad' ? dpadActions(p, st.pad) : buttonActions(p, st.pad);
   const src = `touch${id}`;
   for (const a of st.actions) if (!next.has(a)) KB.setAction(a, src, false);
   for (const a of next) if (!st.actions.has(a)) KB.setAction(a, src, true);
@@ -224,58 +254,121 @@ function endPointer(id) {
 }
 
 function refreshPressed() {
-  const all = new Set();
-  for (const st of pointers.values()) for (const a of st.actions) all.add(a);
-  btnA.classList.toggle('on', all.has('jump'));
-  btnB.classList.toggle('on', all.has('run'));
   const menu = KB.K.menuMode;
-  btnAct.classList.toggle('on', !menu && all.has('up') && all.has('down'));
-  dpadEl.querySelector('.left').classList.toggle('on', all.has(menu ? 'up' : 'left'));
-  dpadEl.querySelector('.right').classList.toggle('on', all.has(menu ? 'down' : 'right'));
+  for (const pad of [1, 2]) {
+    const all = new Set();
+    for (const st of pointers.values()) if (st.pad === pad) for (const a of st.actions) all.add(a);
+    const el = pads[pad];
+    el.a.classList.toggle('on', all.has(act(pad, 'jump')));
+    el.b.classList.toggle('on', all.has(act(pad, 'run')));
+    el.act.classList.toggle('on', !menu && all.has(act(pad, 'up')) && all.has(act(pad, 'down')));
+    el.dpad.querySelector('.left').classList.toggle('on', all.has(menu ? 'up' : act(pad, 'left')));
+    el.dpad.querySelector('.right').classList.toggle('on', all.has(menu ? 'down' : act(pad, 'right')));
+  }
 }
 
-function buildTouch() {
-  touchLayer = document.createElement('div');
-  touchLayer.id = 'touch';
-  touchLayer.innerHTML = `
+// --- moving the controls by dragging them (while the panel is open) ---
+
+let drag = null; // { id, it, x0, y0, px, py }
+
+function startDrag(e, it) {
+  e.preventDefault();
+  const l = layout()[it.id];
+  drag = { id: e.pointerId, it, x0: l.x, y0: l.y, px: e.clientX, py: e.clientY };
+  try {
+    e.currentTarget.setPointerCapture(e.pointerId);
+  } catch {
+    // synthetic pointer
+  }
+  itemEl(it).classList.add('dragging');
+}
+
+function moveDrag(e) {
+  if (!drag || drag.id !== e.pointerId) return;
+  const { it } = drag;
+  const dx = ((e.clientX - drag.px) / window.innerWidth) * 100;
+  const dy = ((e.clientY - drag.py) / window.innerHeight) * 100;
+  const clamp = (v) => Math.round(Math.max(0, Math.min(95, v)) * 10) / 10;
+  const l = layout()[it.id];
+  l.x = clamp(it.anchor === 'left' ? drag.x0 + dx : drag.x0 - dx);
+  l.y = clamp(drag.y0 - dy);
+  applyTouch();
+}
+
+function endDrag(e) {
+  if (!drag || drag.id !== e.pointerId) return;
+  itemEl(drag.it).classList.remove('dragging');
+  drag = null;
+  save();
+}
+
+function buildPad(n) {
+  const root = document.createElement('div');
+  root.className = `pad p${n}`;
+  root.innerHTML = `
     <div class="dpad" data-kind="dpad">
       <div class="arm left"></div><div class="arm right"></div>
     </div>
     <div class="btn act" data-kind="buttons" title="Entrar en tubería"><span>&#8661;</span></div>
     <div class="btn b" data-kind="buttons"><span>B</span></div>
-    <div class="btn a" data-kind="buttons"><span>A</span></div>
-    <div class="sys">
-      <button data-scan="28">START</button>
-      <button data-scan="25">PAUSA</button>
-      <button data-scan="1">ESC</button>
-      <button data-fullscreen title="Pantalla completa">&#x26F6;</button>
-    </div>`;
-  document.body.appendChild(touchLayer);
-  dpadEl = touchLayer.querySelector('.dpad');
-  btnA = touchLayer.querySelector('.btn.a');
-  btnB = touchLayer.querySelector('.btn.b');
-  btnAct = touchLayer.querySelector('.btn.act');
-
-  // A pointer that starts on any of A / B / action can slide between them
-  for (const el of [dpadEl, btnA, btnB, btnAct]) {
+    <div class="btn a" data-kind="buttons"><span>A</span></div>`;
+  touchLayer.appendChild(root);
+  pads[n] = {
+    root,
+    dpad: root.querySelector('.dpad'),
+    a: root.querySelector('.btn.a'),
+    b: root.querySelector('.btn.b'),
+    act: root.querySelector('.btn.act'),
+  };
+  for (const it of LAYOUT_ITEMS.filter((x) => x.pad === n)) {
+    const el = itemEl(it);
     el.addEventListener('pointerdown', (e) => {
-      if (panelOpen) return;
+      if (panelOpen) {
+        startDrag(e, it);
+        return;
+      }
+      // A pointer that starts on any of A / B / action can slide between them
       e.preventDefault();
       try {
         el.setPointerCapture(e.pointerId);
       } catch {
         // synthetic or already released pointer
       }
-      pointers.set(e.pointerId, { kind: el.dataset.kind, actions: new Set() });
+      pointers.set(e.pointerId, { kind: el.dataset.kind, pad: n, actions: new Set() });
       updatePointer(e.pointerId, { x: e.clientX, y: e.clientY });
     });
     el.addEventListener('pointermove', (e) => {
-      if (pointers.has(e.pointerId)) updatePointer(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (drag) moveDrag(e);
+      else if (pointers.has(e.pointerId)) updatePointer(e.pointerId, { x: e.clientX, y: e.clientY });
     });
-    for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture'])
-      el.addEventListener(ev, (e) => endPointer(e.pointerId));
+    for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      el.addEventListener(ev, (e) => {
+        endDrag(e);
+        endPointer(e.pointerId);
+      });
+    }
   }
+}
 
+function buildTouch() {
+  touchLayer = document.createElement('div');
+  touchLayer.id = 'touch';
+  document.body.appendChild(touchLayer);
+  buildPad(1);
+  buildPad(2);
+  touchLayer.insertAdjacentHTML('beforeend', `
+    <div class="sys">
+      <button data-scan="28">START</button>
+      <button data-scan="25">PAUSA</button>
+      <button data-scan="1">ESC</button>
+      <button data-fullscreen title="Pantalla completa">&#x26F6;</button>
+    </div>
+    <div class="edit-bar">
+      <span>Arrastra los controles para colocarlos</span>
+      <button type="button" data-edit-done>Listo</button>
+    </div>`);
+
+  touchLayer.querySelector('[data-edit-done]').addEventListener('click', stopEditing);
   touchLayer.querySelector('[data-fullscreen]').addEventListener('click', () => {
     if (!panelOpen) toggleFullscreen();
   });
@@ -307,16 +400,67 @@ function applyTouch() {
   document.body.classList.toggle('touch-on', t.enabled);
   touchLayer.style.display = t.enabled ? '' : 'none';
   touchLayer.style.setProperty('--alpha', l.alpha);
+  for (const p of PADS) {
+    pads[p.n].root.style.opacity = l[p.alpha];
+    pads[p.n].root.hidden = !padOn(p.n);
+  }
   for (const it of LAYOUT_ITEMS) {
-    touchLayer.style.setProperty(`--${it.id}-x`, `${l[it.id].x}vw`);
-    touchLayer.style.setProperty(`--${it.id}-y`, `${l[it.id].y}vh`);
-    touchLayer.style.setProperty(`--${it.id}-size`, `${l[it.id].size}vmin`);
+    const el = itemEl(it);
+    const v = l[it.id];
+    el.style.setProperty('--s', `${v.size}vmin`);
+    el.style[it.anchor] = `calc(${v.x}vw + env(safe-area-inset-${it.anchor}))`;
+    el.style.bottom = `calc(${v.y}vh + env(safe-area-inset-bottom))`;
   }
   touchLayer.classList.toggle('preview', panelOpen);
+  // the preview of the controls is only shown in the Táctil tab
+  touchLayer.classList.toggle('off-tab', panelOpen && panelTab !== 'touch' && !editing);
+  touchLayer.classList.toggle('editing', editing);
   if (!t.enabled) for (const id of [...pointers.keys()]) endPointer(id);
+  // player 2 controls switched off: release whatever they were holding
+  if (!t.p2) for (const [id, st] of pointers) if (st.pad === 2) endPointer(id);
+}
+
+// Full screen editing: the panel hides so every control can be reached
+function startEditing() {
+  editing = true;
+  $('start').hidden = true;
+  applyTouch();
+}
+
+function stopEditing() {
+  if (!editing) return;
+  editing = false;
+  $('start').hidden = false;
+  applyTouch();
+  $('touch-move').focus();
 }
 
 // --- settings panel --------------------------------------------------------
+
+function showTab(name) {
+  panelTab = name;
+  for (const b of document.querySelectorAll('.tabs [role="tab"]')) {
+    const on = b.dataset.tab === name;
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+    $(`tab-${b.dataset.tab}`).hidden = !on;
+  }
+  applyTouch();
+}
+
+function initTabs() {
+  const tabs = [...document.querySelectorAll('.tabs [role="tab"]')];
+  for (const b of tabs) {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+    b.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const i = (tabs.indexOf(b) + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+      showTab(tabs[i].dataset.tab);
+      tabs[i].focus();
+    });
+  }
+}
 
 let onPlay = () => {};
 let started = false;
@@ -339,14 +483,15 @@ function renderCharacters() {
 function renderBindings() {
   const tbody = $('bindings');
   tbody.innerHTML = '';
-  let prevSys = false;
+  let prevGroup = null;
   for (const a of KB.ACTIONS) {
-    if (a.sys && !prevSys) {
+    const group = a.sys ? 'Sistema' : a.group || null;
+    if (group && group !== prevGroup) {
       const sep = document.createElement('tr');
-      sep.innerHTML = '<td colspan="3" class="sep">Sistema</td>';
+      sep.innerHTML = `<td colspan="3" class="sep">${group}</td>`;
       tbody.appendChild(sep);
     }
-    prevSys = !!a.sys;
+    prevGroup = group;
     const tr = document.createElement('tr');
     const th = document.createElement('th');
     th.textContent = a.label;
@@ -430,51 +575,46 @@ function commitBindings() {
   save();
 }
 
-// Sliders for every touch control, built from LAYOUT_ITEMS
+// Sliders: the size of every control and the opacity of each set
 function buildTouchSliders() {
-  const box = $('touch-sliders');
-  box.innerHTML = '';
-  const add = (label, key, prop, min, max, step = 1) => {
-    const lab = document.createElement('label');
-    lab.innerHTML = `${label} <input type="range" min="${min}" max="${max}" step="${step}"> <output></output>`;
-    const input = lab.querySelector('input');
-    input.dataset.key = key;
-    input.dataset.prop = prop;
-    input.addEventListener('input', () => {
-      const v = Number(input.value);
-      if (key === 'alpha') layout().alpha = v / 100;
-      else layout()[key][prop] = v;
-      lab.querySelector('output').textContent = input.value;
-      applyTouch();
-      save();
-    });
-    box.appendChild(lab);
-  };
-  const group = (text) => {
-    const g = document.createElement('div');
-    g.className = 'group';
-    g.textContent = text;
-    box.appendChild(g);
-  };
-  for (const it of LAYOUT_ITEMS) {
-    group(it.label);
-    add('Horizontal', it.id, 'x', 0, 60);
-    add('Vertical', it.id, 'y', 0, 80);
-    add('Tamaño', it.id, 'size', it.size[0], it.size[1]);
+  for (const p of PADS) {
+    const box = $(`touch-sliders${p.suffix}`);
+    box.innerHTML = '';
+    const add = (label, key, min, max, step = 1) => {
+      const lab = document.createElement('label');
+      lab.innerHTML = `${label} <input type="range" min="${min}" max="${max}" step="${step}"> <output></output>`;
+      const input = lab.querySelector('input');
+      input.dataset.key = key;
+      input.addEventListener('input', () => {
+        const v = Number(input.value);
+        if (ALPHA_KEYS.includes(key)) layout()[key] = v / 100;
+        else layout()[key].size = v;
+        lab.querySelector('output').textContent = input.value;
+        applyTouch();
+        save();
+      });
+      box.appendChild(lab);
+    };
+    const group = document.createElement('div');
+    group.className = 'group';
+    group.textContent = `${p.title}: tamaño`;
+    box.appendChild(group);
+    for (const it of LAYOUT_ITEMS.filter((x) => x.pad === p.n)) add(it.label, it.id, it.size[0], it.size[1]);
+    add('Opacidad (todos) %', p.alpha, 10, 100, 5);
   }
-  group('General');
-  add('Opacidad %', 'alpha', 'alpha', 10, 100, 5);
 }
 
 function syncTouchForm() {
   const t = settings.touch;
   const l = layout();
   $('touch-on').checked = t.enabled;
+  $('touch-p2').checked = t.p2;
   $('touch-opts').hidden = !t.enabled;
+  $('touch-sliders2').hidden = !t.p2;
   $('orient-name').textContent = ORIENT_NAME[orientation()];
-  for (const input of $('touch-sliders').querySelectorAll('input')) {
-    const { key, prop } = input.dataset;
-    input.value = key === 'alpha' ? Math.round(l.alpha * 100) : l[key][prop];
+  for (const input of document.querySelectorAll('#touch-opts .sliders input')) {
+    const { key } = input.dataset;
+    input.value = ALPHA_KEYS.includes(key) ? Math.round(l[key] * 100) : l[key].size;
     input.parentElement.querySelector('output').textContent = input.value;
   }
 }
@@ -540,6 +680,7 @@ function saveTemplate() {
 
 export function openPanel() {
   panelOpen = true;
+  editing = false;
   KB.suspendInput(true);
   for (const id of [...pointers.keys()]) endPointer(id);
   $('start').hidden = false;
@@ -551,6 +692,7 @@ export function openPanel() {
 
 function closePanel() {
   if (capturing) stopCapture();
+  editing = false;
   panelOpen = false;
   $('start').hidden = true;
   $('gear').hidden = false;
@@ -611,6 +753,8 @@ export function initUI(playCallback, uiHooks = {}) {
   }
   KB.setBindings(settings.bindings);
   buildTouch();
+  initTabs();
+  showTab(panelTab);
   initEaster($('easter'));
   // The touch preview would cover the easter egg at the bottom of the panel
   new IntersectionObserver((entries) => {
@@ -631,6 +775,13 @@ export function initUI(playCallback, uiHooks = {}) {
     applyTouch();
     save();
   });
+  $('touch-p2').addEventListener('change', () => {
+    settings.touch.p2 = $('touch-p2').checked;
+    syncTouchForm();
+    applyTouch();
+    save();
+  });
+  $('touch-move').addEventListener('click', startEditing);
   buildTouchSliders();
   $('reset-touch').addEventListener('click', () => {
     const o = orientation();
@@ -663,6 +814,13 @@ export function initUI(playCallback, uiHooks = {}) {
 
   window.addEventListener('keydown', (e) => {
     if (!panelOpen || capturing) return;
+    if (editing) {
+      if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+        e.preventDefault();
+        stopEditing();
+      }
+      return;
+    }
     if (e.code === 'Escape' && started) {
       e.preventDefault();
       play();

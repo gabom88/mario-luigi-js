@@ -30,6 +30,7 @@ Web oficial del juego original: **<https://wieringsoftware.nl/mario/index.html>*
 4. [Controles](#controles)
 5. [Panel de ajustes](#panel-de-ajustes)
 6. [Menú del juego y LEVEL SELECT](#menú-del-juego-y-level-select)
+   - [Modo START VERSUS](#modo-start-versus)
    - [Modo START SMB 1](#modo-start-smb-1)
 7. [Editor de niveles](#editor-de-niveles)
 8. [Trucos del original](#trucos-del-original)
@@ -79,9 +80,10 @@ Este repositorio incluye ese código fuente original (ver
 
 ## Qué ofrece este port
 
-- **Dos modos de juego**: *START ORIGINAL* (el juego de 1994) y
+- **Tres modos de juego**: *START ORIGINAL* (el juego de 1994),
   *START SMB 1*, con 15 niveles de *Super Mario Bros.* (NES) adaptados al
-  motor original.
+  motor original, y *START VERSUS*, con Mario y Luigi jugando a la vez en
+  la misma pantalla.
 - **El juego completo**: menú, los 6 niveles con sus áreas secundarias,
   la segunda vuelta "turbo", 1 o 2 jugadores, partidas guardadas y la demo
   automática de la pantalla de título.
@@ -158,6 +160,10 @@ debe servirse por http; abrir `index.html` con doble clic no funciona.
 | Salir del nivel / atrás en menús | **Esc** |
 | Pantalla completa | **F** |
 
+**Player 2 (modo START VERSUS)**: flechas para moverse, **.** (punto) o **0** del
+teclado numérico para saltar y **,** (coma) o **.** del teclado numérico para
+correr y disparar.
+
 En los menús también funcionan las flechas. Todas las teclas se pueden
 cambiar en el [panel de ajustes](#panel-de-ajustes). El original usaba
 flechas, **Alt** (saltar), **Ctrl** (correr) y **Espacio** (disparar);
@@ -166,7 +172,8 @@ puedes volver a asignarlas si lo prefieres.
 ### Mando
 
 Cruceta o stick para moverse, **A / Y** para saltar y **B / X** para correr
-y disparar (Gamepad API, sin configuración).
+y disparar (Gamepad API, sin configuración). En START VERSUS el primer mando
+conectado es Player 1 y el segundo, Player 2.
 
 ### Controles táctiles
 
@@ -178,6 +185,14 @@ Se activan en el panel (vienen activados en dispositivos táctiles):
 - **⇅**: entrar en tuberías, hacia abajo o saltando hacia una de arriba.
 - **START**, **PAUSA**, **ESC** y **⛶** (pantalla completa), abajo en el centro.
 - En los menús, ← → mueven la selección y **B** o **START** eligen.
+- **Controles de Player 2**: un segundo juego de botones, en verde, para el
+  modo START VERSUS en el mismo dispositivo. Se activa y desactiva en el panel.
+
+Para colocar los controles **arrástralos**: pulsa **Mover controles** en el
+panel (se oculta el panel y aparecen todos los botones) y termina con
+**Listo**. El tamaño de cada control (flechas, A, B y Acción) se cambia con
+su deslizador, y otro deslizador cambia la opacidad de todo el juego de
+controles. Player 2 tiene los mismos ajustes, independientes.
 
 En vertical la pantalla del juego queda arriba y los controles debajo; en
 horizontal los controles quedan a los lados.
@@ -189,24 +204,30 @@ horizontal los controles quedan a los lados.
 Es la pantalla inicial. Durante la partida se vuelve a abrir con el botón
 **⚙** de la esquina superior derecha. Todo se guarda automáticamente.
 
+Los ajustes están en dos pestañas: **Juego** (personajes, pantalla, extras y
+controles de teclado) y **Táctil** (controles táctiles). La vista previa de
+los botones táctiles solo aparece en la pestaña Táctil.
+
 | Sección | Opciones |
 |---|---|
 | **Personajes** | Mario o Luigi para Player 1 y Player 2 (por defecto Mario y Luigi). Cambia los sprites, el nombre en el marcador y los carteles. Pueden ser el mismo. |
 | **Controles de teclado** | Dos teclas por acción. Clic en una casilla y pulsa la tecla nueva; **Supr** la borra y **Esc** cancela. Una tecla con varias acciones se muestra en **amarillo**. Las acciones de juego pueden compartir tecla (como N para correr y disparar), pero las de **Sistema** no. Esc y Tab no se pueden asignar. |
 | **Pantalla** | *Sincronización*: **Suave** (un frame del juego por refresco del monitor; scroll sin tirones, pero a 60 Hz el juego va un 14% más lento que el original; en pantallas de 90/120/144 Hz, o que cambian de frecuencia como muchos Android, la velocidad se limita con el reloj real a 55–72 frames por segundo) u **Original** (70 fps exactos, como un monitor VGA). *Escalado*: **Nítido sin parpadeo** (ampliación entera más un filtrado final, todos los píxeles del mismo tamaño) o **Píxel exacto**. |
 | **Extras** | **Filtro CRT** (líneas de barrido alineadas con las 200 líneas de la VGA, máscara de fósforo, viñeta). **Sonido mejorado** (notas con envolvente, filtro y eco en lugar del pitido del altavoz). **Vibración** en móviles al recibir daño, pisar enemigos y romper bloques. |
-| **Controles táctiles** | Activar/desactivar. Posición horizontal, vertical y tamaño **independientes** para las flechas y para los botones A, B y ⇅, más la opacidad, con vista previa en vivo. **Cada orientación (vertical y horizontal) guarda su propia distribución** y se cambia sola al girar el móvil. **Plantillas**: guarda la distribución actual con un nombre y aplícala después a cualquier orientación (o bórrala). |
+| **Controles táctiles** | Activar/desactivar, y activar/desactivar los **controles de Player 2**. La posición se ajusta **arrastrando** cada control (botón *Mover controles*); el tamaño de las flechas y de los botones A, B y ⇅ con un deslizador para cada uno, y la opacidad con un deslizador por jugador, con vista previa en vivo. **Cada orientación (vertical y horizontal) guarda su propia distribución** y se cambia sola al girar el móvil. **Plantillas**: guarda la distribución actual con un nombre y aplícala después a cualquier orientación (o bórrala). |
 
 ---
 
 ## Menú del juego y LEVEL SELECT
 
-El menú es el del original, con una opción añadida:
+El menú es el del original, con varias opciones añadidas:
 
 - **START ORIGINAL**: el juego de 1994. *No save* (partida sin guardar,
   1 o 2 jugadores), *Game select* (3 ranuras de partida guardada) y *Erase*.
 - **START SMB 1**: los niveles de *Super Mario Bros.*, para 1 o 2 jugadores
   (ver [abajo](#modo-start-smb-1)).
+- **START VERSUS**: Player 1 y Player 2 juegan a la vez el mismo nivel, con
+  los niveles originales o los de SMB 1 (ver [abajo](#modo-start-versus)).
 - **LEVEL SELECT**: empezar en cualquier nivel de los dos modos (nuevo en
   este port).
 - **OPTIONS**: sonido y marcador.
@@ -232,6 +253,30 @@ deja elegir:
 Las áreas secundarias de los niveles 2 y 3 existen en el código fuente pero
 están vacías (no tienen datos), por eso no aparecen. Desde LEVEL SELECT la
 partida es de un jugador y no se guarda.
+
+### Modo START VERSUS
+
+![START VERSUS: Mario y Luigi juegan a la vez el nivel 1](docs/screenshots/versus.gif)
+
+*START VERSUS* es un modo para dos jugadores en el mismo dispositivo que no
+existía en el original. En el menú elige **START VERSUS** y luego
+**ORIGINAL LEVELS** (los 6 niveles de 1994) o **SMB 1 LEVELS** (los de
+*Super Mario Bros.*). Player 1 y Player 2 aparecen a la vez en el nivel y lo
+juegan juntos, cada uno con sus controles (teclado, mando o su propio juego
+de botones táctiles) y con el personaje elegido en el panel. En la animación,
+Mario pisa un Goomba, muere con el siguiente, Luigi sigue jugando y Mario
+reaparece a su lado.
+
+- **Vidas, monedas y puntos son comunes.** El tamaño (pequeño, grande, fuego)
+  es de cada jugador.
+- Si un jugador muere, **reaparece a los pocos segundos** junto al otro,
+  parpadeando, y se gasta una vida.
+- Si los dos están muertos a la vez, el nivel se reinicia como en el juego
+  normal. Con la última vida, morir termina la partida.
+- La **cámara** se centra entre los dos y no deja que ninguno salga de la
+  pantalla: si se separan demasiado, el borde frena al que va delante.
+- Si cualquiera de los dos entra en una **tubería**, un **warp** o la
+  **salida**, los dos pasan juntos sin esperar al otro.
 
 ### Modo START SMB 1
 
@@ -483,6 +528,7 @@ Cada unidad tiene su módulo JavaScript:
 | `BUFFERS.PAS`, `VGA256.PAS` | `buffers.js`, `vga256.js` | Estado compartido, mapa del mundo; VGA |
 | — | `pascal.js` | `Random` de Turbo Pascal 7, `Round`, `div`… |
 | — | `ui.js`, `extras.js`, `main.js` | Panel de ajustes, controles táctiles, CRT, PWA |
+| — | `versus.js` | Modo START VERSUS: dos jugadores, reaparición y cámara compartida |
 
 ### 4. Bucles bloqueantes con `async/await`
 
