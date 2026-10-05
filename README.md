@@ -2,6 +2,8 @@
 
 [![Deploy to GitHub Pages](https://github.com/gabom88/mario-luigi-js/actions/workflows/pages.yml/badge.svg)](https://github.com/gabom88/mario-luigi-js/actions/workflows/pages.yml)
 
+![START VERSUS](https://github.com/gabom88/mario-luigi-js/raw/modo-versus/docs/screenshots/versus.gif)
+
 ### ▶ **[Jugar ahora: gabom88.github.io/mario-luigi-js](https://gabom88.github.io/mario-luigi-js/)**
 
 Port al navegador de **Mario & Luigi**, el juego de plataformas que
@@ -100,6 +102,20 @@ Este repositorio incluye ese código fuente original (ver
 - **App instalable (PWA)** con iconos hechos con los sprites del juego;
   funciona sin conexión.
 - **Scroll suave** sincronizado con el monitor y escalado sin parpadeo.
+
+---
+
+- **START VERSUS** (nueva opción del menú): Player 1 y Player 2 juegan a la vez el mismo nivel, con los niveles originales o los de SMB 1.
+  - Vidas, monedas y puntos compartidos; el tamaño (pequeño, grande, fuego) es de cada jugador.
+  - Un jugador que muere reaparece a los 2,5 s junto al otro, parpadeando, y gasta una vida. Si los dos están muertos a la vez, el nivel se reinicia como en el juego normal.
+  - La cámara se centra entre los dos y no deja que ninguno salga de la pantalla.
+  - Si cualquiera entra en una tubería, un warp o la salida, los dos pasan juntos.
+- **Controles de Player 2**: teclas propias (flechas, `.` y `,` por defecto), segundo mando y un segundo juego de botones táctiles en verde, que se activa en el panel.
+- **Controles táctiles**: la posición se ajusta arrastrando los botones («Mover controles»), el tamaño con un deslizador por botón y la opacidad con un deslizador por jugador.
+- **Panel de ajustes en pestañas**: Juego (personajes, pantalla, extras, teclado) y Táctil.
+- **README**: sección del modo con un GIF de gameplay y la captura del menú actualizada.
+
+![START VERSUS](https://github.com/gabom88/mario-luigi-js/raw/modo-versus/docs/screenshots/versus.gif)
 
 ---
 
@@ -595,8 +611,7 @@ No se incluyen `MARIOSRC.ZIP` ni los ejecutables de DOS (`GRED.EXE`,
   lenguaje** (pidiendo que se le avise). No permite distribuirlo como obra
   propia.
 - **Port a JavaScript**: Gabo
-  ([@gabom88](https://github.com/gabom88)), desarrollado con Claude
-  (Anthropic).
+  ([@gabom88](https://github.com/gabom88)).
 - **Niveles de *Super Mario Bros.* en texto**: *The Video Game Level
   Corpus* (VGLC) de Adam Summerville, Santiago Ontañón y Sam Snodgrass,
   licencia MIT ([`web/levels/smb/LICENSE-VGLC.md`](web/levels/smb/LICENSE-VGLC.md)).
