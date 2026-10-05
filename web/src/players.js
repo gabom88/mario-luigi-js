@@ -84,7 +84,7 @@ export const VS = {
   cur: 0, // player whose state is loaded
   slots: [null, null],
   down: [false, false], // dead, waiting to reappear
-  respawn: [0, 0], // frames left until it reappears
+  respawn: [0, 0], // frames left until it reappears (< 0: waits for a life)
   died: false, // set when the loaded player has just died
 };
 
@@ -145,8 +145,9 @@ export const otherPlayer = (i) => VS.slots[i];
 // when there is room for it.
 export function InitVersus(InitX, InitY) {
   VS.cur = 0;
-  VS.down = [false, false];
-  VS.respawn = [0, 0];
+  // a player waiting for a life (respawn < 0) keeps waiting in the next level
+  VS.down = VS.respawn.map((r) => r < 0);
+  VS.respawn = VS.respawn.map((r) => (r < 0 ? r : 0));
   VS.died = false;
   SaveScreen = newSaveScreen();
   initFresh(InitX, InitY, 0);
@@ -158,6 +159,12 @@ export function InitVersus(InitX, InitY) {
   initFresh(free(InitX + W) ? InitX + W : InitX, InitY, 1);
   VS.slots[1] = snapshot();
   restore(VS.slots[0]);
+}
+
+// New game: nobody is waiting for a life
+export function ResetVersus() {
+  VS.down = [false, false];
+  VS.respawn = [0, 0];
 }
 
 // After a pipe both players come out of the pipe the loaded one entered.
@@ -172,8 +179,14 @@ export function InitVersusAtPipe(InitX, InitY) {
     PL.MapY = MapY;
     PL.PipeCode = PipeCode.slice();
   }
-  VS.down = [false, false];
-  VS.respawn = [0, 0];
+  // a player who was going to reappear comes along; one waiting for a
+  // life (respawn < 0) keeps waiting
+  for (const i of [0, 1]) {
+    if (VS.respawn[i] >= 0) {
+      VS.down[i] = false;
+      VS.respawn[i] = 0;
+    }
+  }
 }
 
 // The loaded player reappears at (NewX, NewY), blinking (it cannot be hurt
@@ -226,6 +239,12 @@ const Pictures = [0, 1].map(() => [0, 1, 2].map(() => [0, 1, 2, 3].map(() =>
 
 // Sprites follow the character chosen for the player slot (Mario / Luigi)
 const pic = (md, n, dir) => Pictures[B.Character[B.Player]][md][n][dir];
+
+// Draws a character (plMario / plLuigi) with no game state behind it:
+// frame 0..1 walking, 2..3 jumping (the Luigi of the title menu)
+export function DrawFigure(XPos, YPos, Character, Frame, Dir) {
+  VGA.DrawImage(XPos, YPos, W, 2 * H, Pictures[Character][mdSmall][Frame][Dir]);
+}
 
 export function InitPlayerFigures() {
   const names = [['SWMAR', 'SJMAR'], ['LWMAR', 'LJMAR'], ['FWMAR', 'FJMAR']];

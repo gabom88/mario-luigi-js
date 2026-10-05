@@ -481,6 +481,7 @@
 
       <div class="tabs" role="tablist" aria-label="Ajustes">
         <button type="button" role="tab" id="tabbtn-game" data-tab="game" aria-controls="tab-game" aria-selected="true">Juego</button>
+        <button type="button" role="tab" id="tabbtn-keys" data-tab="keys" aria-controls="tab-keys" aria-selected="false">Teclado</button>
         <button type="button" role="tab" id="tabbtn-touch" data-tab="touch" aria-controls="tab-touch" aria-selected="false">Táctil</button>
       </div>
 
@@ -526,7 +527,10 @@
             <small>en móviles: daño, pisar enemigos, romper bloques</small></label>
         </div>
 
-        <h2>Controles de teclado</h2>
+      </section>
+
+      <section id="tab-keys" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-keys" hidden>
+        <h2 class="first">Controles de teclado</h2>
         <table><tbody id="bindings"></tbody></table>
         <div id="key-msg"></div>
         <div class="row">
@@ -549,7 +553,7 @@
           Desliza el pulgar entre A y B para pulsar ambos. En los menús, &larr; &rarr; mueven la selección.</p>
         <div id="touch-opts">
           <label class="switch" style="margin-top:12px"><input id="touch-p2" type="checkbox"> Controles de Player 2
-            <small>segundo juego de botones (verdes) para el modo START VERSUS</small></label>
+            <small>segundo juego de botones (verdes) para el modo 2 PLAYERS VERSUS</small></label>
           <p class="hint orient-note">Ajustando la distribución para el modo <strong id="orient-name">horizontal</strong>.
             Cada orientación guarda la suya: gira el móvil para ajustar la otra.</p>
           <div class="row" style="margin-top:10px">

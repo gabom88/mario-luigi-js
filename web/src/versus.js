@@ -1,9 +1,12 @@
 // VERSUS mode (not in the original): Player 1 and Player 2 play the same
 // level at once. Lives, coins and score are shared. A player who dies
-// reappears next to the other one a little later and costs a life; if
+// reappears next to the other one a little later and costs a life. With
+// the last life the game goes on while the other one is alive: the dead
+// one waits and comes back as soon as a life is won (1UP, 100 coins). If
 // both are down at the same time the level restarts like in the normal
-// game. The camera follows both, and a pipe or the exit taken by either
-// one takes both players along (see play.js).
+// game (or it is game over with no lives left). The camera follows both,
+// and a pipe or the exit taken by either one takes both players along
+// (see play.js).
 
 import {
   B, W, dmNoDemo, dmDead, dmDownInToPipe, dmUpInToPipe, mdSmall,
@@ -16,6 +19,9 @@ import { E, MoveEnemies, CollideEnemies } from './enemies.js';
 import { byte } from './pascal.js';
 
 const RESPAWN_TIME = 175; // frames (2.5 s at 70 Hz)
+const LIFE_RESPAWN_TIME = 70; // after winning the life it was waiting for
+// VS.respawn[i] < 0: player i is down and waits for a life to come back
+const WAIT_LIFE = -1;
 const VIEW_SPAN = 320 - W; // room for a player across the screen
 const MAX_SCROLL = 4; // camera speed limit, pixels per frame
 
@@ -33,19 +39,31 @@ const isDying = (i) => (i === VS.cur ? B.Demo : otherPlayer(i)?.Demo) === dmDead
 function playerDied(i) {
   VS.died = false;
   const other = 1 - i;
-  if (VS.down[other] || isDying(other) || B.Data.Lives[0] <= 1) {
-    // both down at the same time, or the last life: like the normal game
-    // (play.js takes the life and restarts the level or ends the game)
+  if (VS.down[other] || isDying(other)) {
+    // both down at the same time: like the normal game (play.js takes the
+    // life and restarts the level, or ends the game with no lives left)
     B.GameDone = true;
     return;
   }
-  B.Data.Lives[0]--;
   B.Data.Mode[i] = mdSmall;
   VS.down[i] = true;
-  VS.respawn[i] = RESPAWN_TIME;
+  // The last life belongs to the one still playing: wait for another one
+  VS.respawn[i] = takeLife() ? RESPAWN_TIME : WAIT_LIFE;
+}
+
+// Takes a life for a player to come back, keeping the one of the player
+// still in the game
+function takeLife() {
+  if (B.Data.Lives[0] <= 1) return false;
+  B.Data.Lives[0]--;
+  return true;
 }
 
 function tryRespawn(i) {
+  if (VS.respawn[i] === WAIT_LIFE) {
+    if (!takeLife()) return;
+    VS.respawn[i] = LIFE_RESPAWN_TIME;
+  }
   if (--VS.respawn[i] > 0) return;
   const other = 1 - i;
   const o = otherPlayer(other);

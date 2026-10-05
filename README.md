@@ -12,12 +12,17 @@ conexión**.
 
 Web oficial del juego original: **<https://wieringsoftware.nl/mario/index.html>**
 
+![2 PLAYERS VERSUS: Mario y Luigi juegan a la vez](docs/screenshots/versus.gif)
+
+*Nuevo modo **2 PLAYERS VERSUS**: Mario y Luigi juegan a la vez en la misma
+pantalla ([más abajo](#modo-2-players-versus)).*
+
 | | |
 |---|---|
-| ![Menú principal](docs/screenshots/menu.png) | ![Nivel 1](docs/screenshots/level1.png) |
-| ![Nivel 3, con Koopas](docs/screenshots/level3.png) | ![Nivel 6, el castillo](docs/screenshots/level6.png) |
-| ![Nivel 2, subterráneo](docs/screenshots/level2.png) | ![Nivel 4, montañas](docs/screenshots/level4.png) |
-| ![LEVEL SELECT](docs/screenshots/level-select.png) | ![Área secundaria del castillo](docs/screenshots/castle-area.png) |
+| ![Menú principal](docs/screenshots/menu.png) | ![Con el cursor en 2 PLAYERS VERSUS, Luigi entra junto a Mario](docs/screenshots/menu-versus.png) |
+| ![Nivel 1](docs/screenshots/level1.png) | ![Nivel 3, con Koopas](docs/screenshots/level3.png) |
+| ![Nivel 6, el castillo](docs/screenshots/level6.png) | ![Nivel 2, subterráneo](docs/screenshots/level2.png) |
+| ![Nivel 4, montañas](docs/screenshots/level4.png) | ![Área secundaria del castillo](docs/screenshots/castle-area.png) |
 | ![SMB 1-1 en el motor original](docs/screenshots/smb-1-1.png) | ![SMB 1-2, subterráneo](docs/screenshots/smb-1-2.png) |
 
 ---
@@ -30,8 +35,8 @@ Web oficial del juego original: **<https://wieringsoftware.nl/mario/index.html>*
 4. [Controles](#controles)
 5. [Panel de ajustes](#panel-de-ajustes)
 6. [Menú del juego y LEVEL SELECT](#menú-del-juego-y-level-select)
-   - [Modo START VERSUS](#modo-start-versus)
-   - [Modo START SMB 1](#modo-start-smb-1)
+   - [Modo 2 PLAYERS VERSUS](#modo-2-players-versus)
+   - [Paquete SMB 1](#paquete-smb-1)
 7. [Editor de niveles](#editor-de-niveles)
 8. [Trucos del original](#trucos-del-original)
 9. [Partidas guardadas y datos locales](#partidas-guardadas-y-datos-locales)
@@ -80,24 +85,33 @@ Este repositorio incluye ese código fuente original (ver
 
 ## Qué ofrece este port
 
-- **Tres modos de juego**: *START ORIGINAL* (el juego de 1994),
-  *START SMB 1*, con 15 niveles de *Super Mario Bros.* (NES) adaptados al
-  motor original, y *START VERSUS*, con Mario y Luigi jugando a la vez en
-  la misma pantalla.
+- **Tres modos de juego**: *1 PLAYER*, *2 PLAYERS* (por turnos, como el
+  original) y *2 PLAYERS VERSUS*, con Mario y Luigi jugando a la vez en la
+  misma pantalla: vidas compartidas, reaparición, cámara que sigue a los
+  dos y controles propios para cada jugador (teclado, mando o táctil).
+- **Menú reorganizado**: modo de juego → partida guardada → qué jugar
+  (ORIGINAL, SMB 1 o LEVEL SELECT). Las 3 partidas guardadas sirven para
+  los dos paquetes y los tres modos.
+- **Dos paquetes de niveles**: *ORIGINAL* (el juego de 1994) y *SMB 1*, con
+  15 niveles de *Super Mario Bros.* (NES) adaptados al motor original.
 - **El juego completo**: menú, los 6 niveles con sus áreas secundarias,
   la segunda vuelta "turbo", 1 o 2 jugadores, partidas guardadas y la demo
   automática de la pantalla de título.
 - **Fiel al original**: la VGA se emula a nivel de memoria y el código
   Pascal se tradujo casi línea a línea. La demo grabada en 1994 se
   reproduce exactamente igual, frame a frame.
-- **Controles remapeables** (dos teclas por acción), **mando** y
-  **controles táctiles** ajustables en posición, tamaño y opacidad.
+- **Controles remapeables** (dos teclas por acción, también para Player 2),
+  **mando** (uno por jugador en VERSUS) y **controles táctiles**: se
+  colocan arrastrándolos y cada botón tiene su tamaño; con un segundo juego
+  de botones, en verde, para Player 2.
 - **Mario o Luigi** a elegir para cada jugador.
-- **LEVEL SELECT** con todos los niveles, incluidos los que el juego no deja
-  elegir.
+- **LEVEL SELECT** con todos los niveles: los originales, los ocultos
+  (áreas, segunda vuelta, mapa del título), los de SMB 1 y los que crees
+  con el editor, para cualquiera de los tres modos.
 - **Editor de niveles** con todos los bloques del motor: edita los niveles
   originales, los de SMB o crea los tuyos, pruébalos al instante y juégalos
   desde el menú.
+- **Panel de ajustes** con pestañas: Juego, Teclado y Táctil.
 - **Extras opcionales**: filtro CRT, sonido mejorado y vibración en móviles.
 - **App instalable (PWA)** con iconos hechos con los sprites del juego;
   funciona sin conexión.
@@ -160,7 +174,7 @@ debe servirse por http; abrir `index.html` con doble clic no funciona.
 | Salir del nivel / atrás en menús | **Esc** |
 | Pantalla completa | **F** |
 
-**Player 2 (modo START VERSUS)**: flechas para moverse, **.** (punto) o **0** del
+**Player 2 (modo 2 PLAYERS VERSUS)**: flechas para moverse, **.** (punto) o **0** del
 teclado numérico para saltar y **,** (coma) o **.** del teclado numérico para
 correr y disparar.
 
@@ -172,7 +186,7 @@ puedes volver a asignarlas si lo prefieres.
 ### Mando
 
 Cruceta o stick para moverse, **A / Y** para saltar y **B / X** para correr
-y disparar (Gamepad API, sin configuración). En START VERSUS el primer mando
+y disparar (Gamepad API, sin configuración). En 2 PLAYERS VERSUS el primer mando
 conectado es Player 1 y el segundo, Player 2.
 
 ### Controles táctiles
@@ -186,11 +200,11 @@ Se activan en el panel (vienen activados en dispositivos táctiles):
 - **START**, **PAUSA**, **ESC** y **⛶** (pantalla completa), abajo en el centro.
 - En los menús, ← → mueven la selección y **B** o **START** eligen.
 - **Controles de Player 2**: un segundo juego de botones, en verde, para el
-  modo START VERSUS en el mismo dispositivo. Se activa y desactiva en el panel.
+  modo 2 PLAYERS VERSUS en el mismo dispositivo. Se activa y desactiva en el panel.
 
-Para colocar los controles **arrástralos**: pulsa **Mover controles** en el
-panel (se oculta el panel y aparecen todos los botones) y termina con
-**Listo**. El tamaño de cada control (flechas, A, B y Acción) se cambia con
+Para colocar los controles **arrástralos**: pulsa **Mover controles** en la
+pestaña *Táctil* del panel (se oculta el panel y aparecen todos los botones)
+y termina con **Listo**. El tamaño de cada control (flechas, A, B y Acción) se cambia con
 su deslizador, y otro deslizador cambia la opacidad de todo el juego de
 controles. Player 2 tiene los mismos ajustes, independientes.
 
@@ -202,16 +216,27 @@ horizontal los controles quedan a los lados.
 ## Panel de ajustes
 
 Es la pantalla inicial. Durante la partida se vuelve a abrir con el botón
-**⚙** de la esquina superior derecha. Todo se guarda automáticamente.
+**⚙** de la esquina superior derecha, o con **END** en el menú del juego.
+Todo se guarda automáticamente.
 
-Los ajustes están en dos pestañas: **Juego** (personajes, pantalla, extras y
-controles de teclado) y **Táctil** (controles táctiles). La vista previa de
-los botones táctiles solo aparece en la pestaña Táctil.
+| Pestaña Juego | Pestaña Táctil (con los controles de Player 2) |
+|---|---|
+| ![Pestaña Juego del panel de ajustes](docs/screenshots/panel-juego.jpg) | ![Pestaña Táctil con los dos juegos de controles](docs/screenshots/panel-tactil.jpg) |
+
+Los ajustes están en tres pestañas:
+
+- **Juego**: personajes, pantalla y extras.
+- **Teclado**: las teclas de Player 1, de Player 2 (para VERSUS) y las de
+  sistema.
+- **Táctil**: los controles táctiles. La vista previa de los botones solo
+  aparece en esta pestaña.
+
+Con el foco en las pestañas, ← → cambian de una a otra.
 
 | Sección | Opciones |
 |---|---|
 | **Personajes** | Mario o Luigi para Player 1 y Player 2 (por defecto Mario y Luigi). Cambia los sprites, el nombre en el marcador y los carteles. Pueden ser el mismo. |
-| **Controles de teclado** | Dos teclas por acción. Clic en una casilla y pulsa la tecla nueva; **Supr** la borra y **Esc** cancela. Una tecla con varias acciones se muestra en **amarillo**. Las acciones de juego pueden compartir tecla (como N para correr y disparar), pero las de **Sistema** no. Esc y Tab no se pueden asignar. |
+| **Controles de teclado** | Dos teclas por acción, en tres grupos: Player 1, Player 2 (2 PLAYERS VERSUS) y Sistema. Clic en una casilla y pulsa la tecla nueva; **Supr** la borra y **Esc** cancela. Una tecla con varias acciones se muestra en **amarillo**. Las acciones de juego pueden compartir tecla (como N para correr y disparar), pero las de **Sistema** no. Esc y Tab no se pueden asignar. |
 | **Pantalla** | *Sincronización*: **Suave** (un frame del juego por refresco del monitor; scroll sin tirones, pero a 60 Hz el juego va un 14% más lento que el original; en pantallas de 90/120/144 Hz, o que cambian de frecuencia como muchos Android, la velocidad se limita con el reloj real a 55–72 frames por segundo) u **Original** (70 fps exactos, como un monitor VGA). *Escalado*: **Nítido sin parpadeo** (ampliación entera más un filtrado final, todos los píxeles del mismo tamaño) o **Píxel exacto**. |
 | **Extras** | **Filtro CRT** (líneas de barrido alineadas con las 200 líneas de la VGA, máscara de fósforo, viñeta). **Sonido mejorado** (notas con envolvente, filtro y eco en lugar del pitido del altavoz). **Vibración** en móviles al recibir daño, pisar enemigos y romper bloques. |
 | **Controles táctiles** | Activar/desactivar, y activar/desactivar los **controles de Player 2**. La posición se ajusta **arrastrando** cada control (botón *Mover controles*); el tamaño de las flechas y de los botones A, B y ⇅ con un deslizador para cada uno, y la opacidad con un deslizador por jugador, con vista previa en vivo. **Cada orientación (vertical y horizontal) guarda su propia distribución** y se cambia sola al girar el móvil. **Plantillas**: guarda la distribución actual con un nombre y aplícala después a cualquier orientación (o bórrala). |
@@ -220,18 +245,49 @@ los botones táctiles solo aparece en la pestaña Táctil.
 
 ## Menú del juego y LEVEL SELECT
 
-El menú es el del original, con varias opciones añadidas:
+El menú se reorganizó respecto al original. Primero se elige el **modo de
+juego**, después la **partida guardada** y por último **qué jugar**:
 
-- **START ORIGINAL**: el juego de 1994. *No save* (partida sin guardar,
-  1 o 2 jugadores), *Game select* (3 ranuras de partida guardada) y *Erase*.
-- **START SMB 1**: los niveles de *Super Mario Bros.*, para 1 o 2 jugadores
-  (ver [abajo](#modo-start-smb-1)).
-- **START VERSUS**: Player 1 y Player 2 juegan a la vez el mismo nivel, con
-  los niveles originales o los de SMB 1 (ver [abajo](#modo-start-versus)).
-- **LEVEL SELECT**: empezar en cualquier nivel de los dos modos (nuevo en
-  este port).
-- **OPTIONS**: sonido y marcador.
-- **END**: vuelve al título (en el navegador no hay DOS al que salir).
+```
+1 PLAYER            ┐                ┌ NO SAVE      ┐     ┌ ORIGINAL
+2 PLAYERS           ├─ modo ───────► ├ GAME SELECT ─┼──►  ├ SMB 1
+2 PLAYERS VERSUS    ┘                └ ERASE        │     └ LEVEL SELECT ─► lista de niveles
+OPTIONS                                             │
+END                                                 └ (ranura con partida: la continúa)
+```
+
+| Partida guardada | GAME SELECT |
+|---|---|
+| ![NO SAVE, GAME SELECT y ERASE](docs/screenshots/menu-save.png) | ![Las tres ranuras con su nivel, paquete y modo](docs/screenshots/menu-slots.png) |
+| **Qué jugar** | **LEVEL SELECT** |
+| ![ORIGINAL, SMB 1 y LEVEL SELECT](docs/screenshots/menu-package.png) | ![El final de la lista: niveles de SMB y un nivel del editor](docs/screenshots/menu-levels.png) |
+
+1. **Modo de juego**
+   - **1 PLAYER**: un jugador.
+   - **2 PLAYERS**: dos jugadores por turnos, como en el original.
+   - **2 PLAYERS VERSUS**: los dos a la vez en el mismo nivel (ver
+     [abajo](#modo-2-players-versus)).
+2. **Partida guardada**
+   - **NO SAVE**: partida sin guardar.
+   - **GAME SELECT**: 3 ranuras. Una ranura vacía empieza una partida nueva
+     que se guarda en ella. Una ranura con partida la continúa con el modo
+     elegido. Cada ranura muestra su nivel, el paquete, si va por la segunda
+     vuelta (`*` parpadeando) y el modo (`1P`, `2P` o `VS`).
+   - **ERASE**: borra una ranura.
+3. **Qué jugar** (con una partida nueva)
+   - **ORIGINAL**: los 6 niveles de 1994.
+   - **SMB 1**: los niveles de *Super Mario Bros.* (ver
+     [abajo](#paquete-smb-1)).
+   - **LEVEL SELECT**: cualquier nivel, también los ocultos y los creados con
+     el editor (ver abajo).
+
+Además están **OPTIONS** (sonido y marcador) y **END**, que abre el panel de
+ajustes: en el navegador el juego no se puede cerrar. Esc vuelve al menú
+anterior.
+
+Al poner el cursor sobre **2 PLAYERS VERSUS**, Luigi (el personaje de
+Player 2) entra caminando desde la izquierda y se queda junto a Mario; si el
+cursor se va a otra opción, sale caminando por la izquierda.
 
 Si no tocas nada durante unos segundos empieza la **demo**: la partida que
 grabó el autor en 1994.
@@ -251,17 +307,22 @@ deja elegir:
 | **+ NOMBRE** | Tus niveles guardados con el [editor](#editor-de-niveles). |
 
 Las áreas secundarias de los niveles 2 y 3 existen en el código fuente pero
-están vacías (no tienen datos), por eso no aparecen. Desde LEVEL SELECT la
-partida es de un jugador y no se guarda.
+están vacías (no tienen datos), por eso no aparecen.
 
-### Modo START VERSUS
+LEVEL SELECT funciona con los tres modos de juego. En **2 PLAYERS** las
+entradas que no son un nivel normal (áreas secundarias, TITLE MAP y tus
+niveles) las juega cada jugador en su turno. Si elegiste una ranura de
+GAME SELECT, la partida se guarda al seguir por los niveles normales; el
+TITLE MAP y los niveles del editor no se guardan.
 
-![START VERSUS: Mario y Luigi juegan a la vez el nivel 1](docs/screenshots/versus.gif)
+### Modo 2 PLAYERS VERSUS
 
-*START VERSUS* es un modo para dos jugadores en el mismo dispositivo que no
-existía en el original. En el menú elige **START VERSUS** y luego
-**ORIGINAL LEVELS** (los 6 niveles de 1994) o **SMB 1 LEVELS** (los de
-*Super Mario Bros.*). Player 1 y Player 2 aparecen a la vez en el nivel y lo
+![2 PLAYERS VERSUS: Mario y Luigi juegan a la vez el nivel 1](docs/screenshots/versus.gif)
+
+*2 PLAYERS VERSUS* es un modo para dos jugadores en el mismo dispositivo que
+no existía en el original. En el menú elige **2 PLAYERS VERSUS**, la partida
+guardada (o **NO SAVE**) y qué jugar: **ORIGINAL**, **SMB 1** o cualquier
+nivel de **LEVEL SELECT**. Player 1 y Player 2 aparecen a la vez en el nivel y lo
 juegan juntos, cada uno con sus controles (teclado, mando o su propio juego
 de botones táctiles) y con el personaje elegido en el panel. En la animación,
 Mario pisa un Goomba, muere con el siguiente, Luigi sigue jugando y Mario
@@ -271,14 +332,18 @@ reaparece a su lado.
   es de cada jugador.
 - Si un jugador muere, **reaparece a los pocos segundos** junto al otro,
   parpadeando, y se gasta una vida.
+- **Con la última vida la partida sigue** mientras el otro jugador esté vivo.
+  El que murió espera fuera de la pantalla y vuelve en cuanto se consigue
+  una vida (un champiñón 1UP o 100 monedas). Si se pasa de nivel, sigue
+  esperando.
 - Si los dos están muertos a la vez, el nivel se reinicia como en el juego
-  normal. Con la última vida, morir termina la partida.
+  normal, o es *GAME OVER* si ya no quedan vidas.
 - La **cámara** se centra entre los dos y no deja que ninguno salga de la
   pantalla: si se separan demasiado, el borde frena al que va delante.
 - Si cualquiera de los dos entra en una **tubería**, un **warp** o la
   **salida**, los dos pasan juntos sin esperar al otro.
 
-### Modo START SMB 1
+### Paquete SMB 1
 
 Quince niveles de *Super Mario Bros.* (NES) jugados con el motor, la física
 y los gráficos de *Mario & Luigi*: **1-1, 1-2, 1-3, 2-1, 3-1, 3-3, 4-1, 4-2,
@@ -471,8 +536,9 @@ Todo se guarda en el `localStorage` del navegador, en tu dispositivo
 
 - Ajustes del panel: teclas, personajes, pantalla, extras y controles táctiles.
 - Sonido y marcador (también si los cambias jugando con Q o I).
-- Las 3 ranuras de partida (*Game select*), que se actualizan después de
-  cada nivel superado.
+- Las 3 ranuras de partida (*GAME SELECT*), que se actualizan después de
+  cada nivel superado. Cada una guarda el avance, el paquete (ORIGINAL o
+  SMB 1) y el modo con el que se jugó.
 
 Borrar los datos del sitio en el navegador reinicia todo.
 
@@ -528,7 +594,7 @@ Cada unidad tiene su módulo JavaScript:
 | `BUFFERS.PAS`, `VGA256.PAS` | `buffers.js`, `vga256.js` | Estado compartido, mapa del mundo; VGA |
 | — | `pascal.js` | `Random` de Turbo Pascal 7, `Round`, `div`… |
 | — | `ui.js`, `extras.js`, `main.js` | Panel de ajustes, controles táctiles, CRT, PWA |
-| — | `versus.js` | Modo START VERSUS: dos jugadores, reaparición y cámara compartida |
+| — | `versus.js` | Modo 2 PLAYERS VERSUS: dos jugadores, reaparición y cámara compartida |
 
 ### 4. Bucles bloqueantes con `async/await`
 
@@ -555,7 +621,7 @@ Diferencias conocidas:
   segundos.
 - **Nubes, estrellas y los fondos de tipo 5 y 7** estaban escritos para el
   modo VGA lineal y ningún nivel los usa: se dejaron como funciones vacías.
-- **END** vuelve al título.
+- **END** abre el panel de ajustes (en el navegador no hay DOS al que salir).
 - **Velocidad**: con la sincronización *Suave* en monitores de 60 Hz el
   juego va al 86% de la velocidad original; la opción *Original* da los
   70 fps exactos.
@@ -570,8 +636,13 @@ Diferencias conocidas:
 - **Códigos nuevos** (que ningún nivel original usa): terrenos 2 y 3
   (`$B2`–`$B5`), tuberías a zonas (`$C0`–`$C7`), warps (`$D1`–`$D7`) y
   tubería solo de llegada (`$EE`).
-- **Añadido**: remapeo de teclas, controles táctiles, mando, elección de
-  personaje, LEVEL SELECT, extras y PWA.
+- **Menú**: el original tenía *START* (con NO SAVE, GAME SELECT y ERASE) y
+  después el número de jugadores. Aquí se elige primero el modo, después la
+  partida y después qué jugar, porque hay dos paquetes de niveles y un
+  modo más.
+- **Añadido**: modo 2 PLAYERS VERSUS, paquete SMB 1, LEVEL SELECT, editor
+  de niveles, remapeo de teclas, controles táctiles, mando, elección de
+  personaje, extras y PWA.
 
 ---
 
@@ -588,6 +659,10 @@ Todo está en `web/` y no tiene dependencias externas.
 | `node tools/icons.mjs` | Regenera los iconos de la app a partir de los sprites |
 | `node tools/snap.mjs level1 <carpeta>` | Ejecuta el juego sin navegador y guarda capturas PNG (`LEVEL=0..5` elige nivel, `LUIGI=1` usa a Luigi) |
 | `node tools/snap.mjs intro\|levelselect\|demo <carpeta>` | Recorre el menú, el LEVEL SELECT o la demo y guarda capturas |
+| `node tools/snap.mjs versus\|versusdeath\|versuspipe\|savegame <carpeta>` | Prueba 2 PLAYERS VERSUS (partida, muerte y reaparición, tuberías) y las partidas guardadas |
+| `node tools/snap.mjs titlep2 <carpeta>` | Graba la entrada y salida de Player 2 en el menú principal |
+| `node tools/snap.mjs readmeshots <carpeta>` | Genera las capturas del menú de este README (con partidas de ejemplo) |
+| `node tools/snap.mjs versusrec <carpeta>` | Graba los fotogramas del GIF de 2 PLAYERS VERSUS de este README |
 
 **Publicación.** Cada `push` a `main` publica `web/` en GitHub Pages
 mediante [`.github/workflows/pages.yml`](.github/workflows/pages.yml).

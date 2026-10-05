@@ -152,12 +152,13 @@ const scripts = {
     const { Main } = await import('../src/mario.js');
     Main().catch((e) => { errors.push(e); done = true; });
     await frames(150);
-    await press('ArrowDown');
+    await press('Enter'); // 1 PLAYER
+    await press('Enter'); // NO SAVE
     await press('ArrowDown');
     await press('ArrowDown');
     await frames(5);
     snap('menu-levelselect');
-    await press('Enter');
+    await press('Enter'); // LEVEL SELECT
     await frames(5);
     snap('levels-1');
     for (let i = 0; i < 7; i++) await press('ArrowDown');
@@ -212,14 +213,13 @@ const scripts = {
     const { PS } = await import('../src/play.js');
     Main().catch((e) => { errors.push(e); done = true; });
     await frames(150);
+    await press('Enter'); // 1 PLAYER
+    await press('Enter'); // NO SAVE
     await press('ArrowDown');
     await frames(5);
     snap('smbmenu-menu');
-    await press('Enter');
-    await frames(5);
-    snap('smbmenu-players');
     PS.Stat = true;
-    await press('Enter');
+    await press('Enter'); // SMB 1
     await frames(330);
     snap('smbmenu-level');
   },
@@ -239,10 +239,11 @@ const scripts = {
     const { Main } = await import('../src/mario.js');
     Main().catch((e) => { errors.push(e); done = true; });
     await frames(150);
+    await press('Enter'); // 1 PLAYER
+    await press('Enter'); // NO SAVE
     await press('ArrowDown');
     await press('ArrowDown');
-    await press('ArrowDown');
-    await press('Enter');
+    await press('Enter'); // LEVEL SELECT
     await press('ArrowUp'); // wraps to the last entry: the saved level
     await frames(5);
     snap('mylevel-list');
@@ -262,7 +263,8 @@ const scripts = {
     await press('ArrowDown');
     await frames(5);
     snap('versus-menu');
-    await press('Enter');
+    await press('Enter'); // 2 PLAYERS VERSUS
+    await press('Enter'); // NO SAVE
     await frames(5);
     snap('versus-levels');
     PS.Stat = true;
@@ -307,39 +309,46 @@ const scripts = {
     await frames(150);
     await press('ArrowDown');
     await press('ArrowDown');
-    await press('Enter');
+    await press('Enter'); // 2 PLAYERS VERSUS
+    await press('Enter'); // NO SAVE
     PS.Stat = true;
-    await press('Enter');
+    await press('Enter'); // ORIGINAL
     await frames(330);
-    const log = (t) => console.log(t, 'lives', B.Data.Lives[0], 'down', VS.down.join(','),
-      'respawn', VS.respawn.join(','), 'demo', B.Demo, 'GameDone', B.GameDone);
+    const log = (t) => console.log(t.padEnd(26), 'lives', B.Data.Lives[0], 'down', VS.down.join(','),
+      'respawn', VS.respawn.join(','), 'GameDone', B.GameDone);
+    const hit = (i) => { selectPlayer(i); E.cdHit = 1; selectPlayer(0); };
     key('KeyD', true);
     await frames(40);
-    selectPlayer(1);
-    E.cdHit = 1; // player 2 is hit (small: dies)
-    selectPlayer(0);
+    hit(1); // player 2 dies: a life is taken, it comes back
     await frames(30);
     snap('vd-dying');
-    log('dying');
+    log('p2 dying');
     await frames(90);
     snap('vd-down');
-    log('down');
+    log('p2 down (3 -> 2)');
     await frames(120);
     snap('vd-respawn');
-    log('respawned');
-    // then player 1 dies too, alone: player 2 keeps playing
-    selectPlayer(0);
-    E.cdHit = 1;
+    log('p2 back');
+    hit(0); // player 1 dies alone: 2 -> 1
+    await frames(400);
+    log('p1 back (2 -> 1)');
+    hit(1); // last life: player 2 waits, the game goes on
+    await frames(400);
+    snap('vd-waiting');
+    log('p2 waits (last life)');
+    const { AddLife } = await import('../src/tmpobj.js');
+    AddLife(); // a 1UP: player 2 comes back with it
     await frames(150);
-    snap('vd-p1-down');
-    log('p1 down');
-    // and player 2 as well while player 1 is down: the level restarts
-    selectPlayer(1);
-    E.cdHit = 1;
-    selectPlayer(0);
-    await frames(150);
-    snap('vd-both');
-    log('both');
+    snap('vd-life');
+    log('1UP: p2 back');
+    await frames(150); // until it stops blinking (it cannot be hurt)
+    hit(1); // waits again
+    await frames(300);
+    log('p2 waits again');
+    hit(0); // and player 1 dies too: game over
+    await frames(500);
+    snap('vd-gameover');
+    log('both down: game over');
     key('KeyD', false);
     B.QuitGame = true;
     await frames(200);
@@ -410,10 +419,12 @@ const scripts = {
     await recFrames(20);
     await tap('ArrowDown');
     await tap('ArrowDown');
-    await recFrames(25);
-    await tap('Enter');
-    await recFrames(25);
-    await tap('Enter');
+    await recFrames(80); // player 2 walks in next to Mario
+    await tap('Enter'); // 2 PLAYERS VERSUS
+    await recFrames(20);
+    await tap('Enter'); // NO SAVE
+    await recFrames(20);
+    await tap('Enter'); // ORIGINAL
     await recFrames(320); // player name and level fade in
     const plan = (process.env.PLAN || '0:KeyD:1,30:ArrowRight:1').split(',').map((t) => {
       const [f, code, d] = t.split(':');
@@ -426,6 +437,127 @@ const scripts = {
     }
     console.log('recorded', n, 'frames; lives', B.Data.Lives[0], 'XView', B.XView);
     B.QuitGame = true;
+  },
+  // Game save: 2 PLAYERS, GAME SELECT, empty slot 1, SMB 1; after the
+  // first level the slot shows SMB and 2P. END opens the settings (hook).
+  async savegame() {
+    const store = new Map();
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    } });
+    const { Main } = await import('../src/mario.js');
+    const { PS } = await import('../src/play.js');
+    let ended = 0;
+    PS.onEnd = () => { ended++; };
+    Main().catch((e) => { errors.push(e); done = true; });
+    await frames(150);
+    for (let i = 0; i < 4; i++) await press('ArrowDown');
+    await press('Enter'); // END
+    await frames(5);
+    console.log('END opened settings:', ended);
+    await press('ArrowDown'); // wraps to 1 PLAYER
+    await press('ArrowDown'); // 2 PLAYERS
+    await press('Enter');
+    await press('ArrowDown'); // GAME SELECT
+    await press('Enter');
+    await frames(5);
+    snap('save-slots-empty');
+    await press('Enter'); // slot 1 (empty) -> package
+    await frames(5);
+    snap('save-package');
+    await press('ArrowDown');
+    await press('Enter'); // SMB 1
+    await frames(400);
+    B.Data.Progress[0] = 2; // as if 1-1 and 1-2 were passed
+    B.QuitGame = true;
+    await frames(300);
+    const g = JSON.parse(store.get('mario-luigi-config')).Games[0];
+    console.log('slot 1:', g.Package, g.NumPlayers, g.Progress);
+    await press('Enter'); // 1 PLAYER
+    await press('ArrowDown');
+    await press('Enter'); // GAME SELECT
+    await frames(5);
+    snap('save-slots-used');
+  },
+  // Title menu: player 2 walks in on 2 PLAYERS VERSUS and out again.
+  // Frames go to <outdir>/title-NNNN.png (320x200), one every 2 frames.
+  async titlep2() {
+    const { Main } = await import('../src/mario.js');
+    Main().catch((e) => { errors.push(e); done = true; });
+    await frames(150);
+    let n = 0;
+    const rec = async (k) => {
+      for (let i = 0; i < k; i++) {
+        await frames(1);
+        if (VGA.getFrameCounter() % 2 === 0) {
+          VGA.renderFrame(frame32);
+          savePNG(path.join(outDir, `title-${String(n++).padStart(4, '0')}.png`), 320, 200, frame, 1);
+        }
+      }
+    };
+    await rec(10);
+    for (const code of ['ArrowDown', 'ArrowDown']) {
+      key(code, true);
+      await rec(3);
+      key(code, false);
+      await rec(10);
+    }
+    await rec(100); // walks in and stands next to Mario
+    key('ArrowUp', true);
+    await rec(3);
+    key('ArrowUp', false);
+    await rec(100); // walks out
+    console.log('recorded', n);
+  },
+  // Screenshots of the title menus for the README (saved games and an
+  // editor level are made up in a temporary localStorage)
+  async readmeshots() {
+    const store = new Map();
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    } });
+    const game = (progress, players, pack, versus) => ({
+      NumPlayers: players, Progress: [progress, players === 2 ? progress : 0], Lives: [3, 3],
+      Coins: [0, 0], Score: [0, 0], Mode: [0, 0], Package: pack, Versus: versus,
+    });
+    store.set('mario-luigi-config', JSON.stringify({
+      Sound: true, SLine: true, UseJS: true,
+      Games: [game(3, 1, 'original', false), game(4, 2, 'smb', false), game(8, 1, 'original', true)],
+    }));
+    const L = await import('../src/levels.js');
+    const lv = L.loadBuiltin('orig:1');
+    lv.name = 'Mi nivel';
+    L.saveMyLevel(lv);
+    const { Main } = await import('../src/mario.js');
+    Main().catch((e) => { errors.push(e); done = true; });
+    await frames(150);
+    snap('readme-menu');
+    await press('ArrowDown');
+    await press('ArrowDown');
+    await frames(90); // player 2 walks in
+    snap('readme-menu-versus');
+    await press('Enter'); // 2 PLAYERS VERSUS
+    await frames(5);
+    snap('readme-save');
+    await press('ArrowDown');
+    await press('Enter'); // GAME SELECT
+    await frames(5);
+    snap('readme-slots');
+    await press('Escape');
+    await press('Enter'); // NO SAVE
+    await frames(5);
+    snap('readme-package');
+    await press('ArrowDown');
+    await press('ArrowDown');
+    await press('Enter'); // LEVEL SELECT
+    await press('ArrowUp'); // wraps to the last entries: SMB and editor levels
+    await press('ArrowUp');
+    await frames(5);
+    snap('readme-levels');
   },
   async demo() {
     const { Main } = await import('../src/mario.js');

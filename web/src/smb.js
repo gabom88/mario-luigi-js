@@ -1,4 +1,4 @@
-// "START SMB 1": the Super Mario Bros. (NES) levels of the Video Game Level
+// SMB 1 package: the Super Mario Bros. (NES) levels of the Video Game Level
 // Corpus, converted to the map format of Mike Wiering's engine.
 //
 // VGLC level: 14 text rows (top row always empty), one char per 16x16 tile.

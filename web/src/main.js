@@ -4,7 +4,8 @@ import * as VGA from './vga256.js';
 import { initAudio } from './sound.js';
 import { Main } from './mario.js';
 import { getPlaytest } from './levels.js';
-import { initUI } from './ui.js';
+import { initUI, openPanel } from './ui.js';
+import { PS } from './play.js';
 import { InitKeyBoard, setActionHandler } from './keyboard.js';
 import { setCrtHook, toggleFullscreen } from './extras.js';
 
@@ -95,6 +96,8 @@ InitKeyBoard();
 setCrtHook(setCrt);
 setActionHandler('fullscreen', toggleFullscreen);
 initUI(start, { setScaleMode, testMode: !!testLevel });
+// END in the title menu: a browser game cannot close, it opens the settings
+PS.onEnd = openPanel;
 window.addEventListener('pointerdown', () => initAudio());
 
 // Installable app: offline cache (needs https or localhost)
