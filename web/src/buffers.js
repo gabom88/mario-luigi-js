@@ -134,6 +134,8 @@ export const B = {
   QuitGame: false,
   BeeperSound: true,
   Player: 0,
+  // VERSUS: both players on screen at once, sharing lives, coins and score
+  Versus: false,
   // Character shown for each player slot (0 = Mario, 1 = Luigi)
   Character: [0, 1],
   Data: newGameData(),
@@ -151,6 +153,9 @@ export const B = {
   TextCounter: 0,
   LavaCounter: 0,
 };
+
+// Index of B.Data for lives, coins and score: shared by both players in VERSUS
+export const dataSlot = () => (B.Versus ? 0 : B.Player);
 
 // ReadWorld: Map is stored column by column (NV chars each, bottom row last),
 // terminated by a #0.

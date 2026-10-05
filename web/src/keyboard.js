@@ -70,6 +70,14 @@ export const ACTIONS = [
   { id: 'jump', label: 'Saltar', scan: 0x38 },
   { id: 'run', label: 'Correr', scan: 0x1D },
   { id: 'fire', label: 'Disparar', scan: 0x39 },
+  // Player 2 in VERSUS: not keys of the original, read through p2Keys()
+  { id: 'left2', label: 'Izquierda', p2: 'left', group: 'Player 2 (2 PLAYERS VERSUS)' },
+  { id: 'right2', label: 'Derecha', p2: 'right', group: 'Player 2 (2 PLAYERS VERSUS)' },
+  { id: 'up2', label: 'Arriba', p2: 'up', group: 'Player 2 (2 PLAYERS VERSUS)' },
+  { id: 'down2', label: 'Abajo', p2: 'down', group: 'Player 2 (2 PLAYERS VERSUS)' },
+  { id: 'jump2', label: 'Saltar', p2: 'jump', group: 'Player 2 (2 PLAYERS VERSUS)' },
+  { id: 'run2', label: 'Correr', p2: 'run', group: 'Player 2 (2 PLAYERS VERSUS)' },
+  { id: 'fire2', label: 'Disparar', p2: 'fire', group: 'Player 2 (2 PLAYERS VERSUS)' },
   // System keys of the original (they never move Mario)
   { id: 'accept', label: 'Aceptar (menús)', scan: 28, sys: true },
   { id: 'pause', label: 'Pausa', scan: 25, sys: true },
@@ -94,6 +102,13 @@ export const DEFAULT_BINDINGS = {
   jump: ['KeyM', null],
   run: ['KeyN', null],
   fire: ['KeyN', null],
+  left2: ['ArrowLeft', null],
+  right2: ['ArrowRight', null],
+  up2: ['ArrowUp', null],
+  down2: ['ArrowDown', null],
+  jump2: ['Period', 'Numpad0'],
+  run2: ['Comma', 'NumpadDecimal'],
+  fire2: ['Comma', 'NumpadDecimal'],
   accept: ['Enter', 'NumpadEnter'],
   pause: ['KeyP', null],
   status: ['KeyI', null],
@@ -118,19 +133,29 @@ function actionsForCode(code) {
 }
 
 // Scan codes that drive the game's KeyMap: only bound keys may set them.
-const ACTION_SCANS = new Set(ACTIONS.filter((a) => !a.sys).map((a) => a.scan));
-const SYS_SCANS = new Set(ACTIONS.filter((a) => a.sys && a.scan !== null).map((a) => a.scan));
+const ACTION_SCANS = new Set(ACTIONS.filter((a) => !a.sys && a.scan != null).map((a) => a.scan));
+const SYS_SCANS = new Set(ACTIONS.filter((a) => a.sys && a.scan != null).map((a) => a.scan));
 
 // action id -> set of sources (key codes, touch pointers) holding it
 const active = new Map(ACTIONS.map((a) => [a.id, new Set()]));
 
+// Keys held by player 2 (VERSUS)
+const P2 = { left: false, right: false, up: false, down: false, jump: false, run: false, fire: false };
+export function p2Keys() {
+  return P2;
+}
+
 export function setAction(id, source, pressed) {
   const set = active.get(id);
   if (!set) return;
-  const { scan, sys } = ACTIONS.find((a) => a.id === id);
+  const { scan, sys, p2 } = ACTIONS.find((a) => a.id === id);
   const was = set.size > 0;
   if (pressed) set.add(source);
   else set.delete(source);
+  if (p2) {
+    P2[p2] = set.size > 0;
+    return;
+  }
   if (scan === null) {
     if (pressed && !was) handlers[id]?.();
     return;
@@ -144,7 +169,8 @@ export function releaseAll() {
     if (set.size) {
       set.clear();
       const a = ACTIONS.find((x) => x.id === id);
-      if (a.scan !== null) scanEvent(a.scan, false, !a.sys);
+      if (a.p2) P2[a.p2] = false;
+      else if (a.scan !== null) scanEvent(a.scan, false, !a.sys);
     }
   }
   held.clear();
@@ -207,6 +233,9 @@ function handleKey(e, pressed) {
   }
   if (acts.length) {
     for (const a of acts) setAction(a.id, e.code, pressed);
+    // Player 2 keys (arrows by default) still move through the menus
+    if (acts.every((a) => a.p2) && natural !== undefined && !SYS_SCANS.has(natural))
+      scanEvent(natural, pressed, false);
   } else {
     // Unbound key: still reaches menus and cheat codes, but if it is one of
     // the original game keys (arrows, Alt, Ctrl, Space) it does not move

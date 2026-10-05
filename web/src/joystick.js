@@ -12,11 +12,13 @@ export const J = {
   jsDown: false,
 };
 
-export function ReadJoystick() {
+// pad: -1 reads every gamepad together; 0 / 1 only the first / second
+// connected one (VERSUS: one gamepad for each player).
+export function ReadJoystick(pad = -1) {
   J.jsButton1 = J.jsButton2 = J.jsLeft = J.jsRight = J.jsUp = J.jsDown = false;
   if (!J.jsEnabled || !navigator.getGamepads) return;
-  for (const gp of navigator.getGamepads()) {
-    if (!gp || !gp.connected) continue;
+  const pads = [...navigator.getGamepads()].filter((gp) => gp && gp.connected);
+  for (const gp of pad < 0 ? pads : pads.slice(pad, pad + 1)) {
     const b = (i) => !!gp.buttons[i]?.pressed;
     const ax = gp.axes[0] ?? 0;
     const ay = gp.axes[1] ?? 0;

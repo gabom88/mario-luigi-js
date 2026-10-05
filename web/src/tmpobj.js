@@ -2,7 +2,7 @@
 // and delayed block removal.
 
 import * as VGA from './vga256.js';
-import { B, W, H, NH, NV, WorldMap, AddScore, Beep } from './buffers.js';
+import { B, W, H, NH, NV, WorldMap, AddScore, Beep, dataSlot } from './buffers.js';
 import { DrawBackGrBlock } from './backgr.js';
 import { CoinGlitter } from './glitter.js';
 import { ReColor } from './figures.js';
@@ -210,15 +210,15 @@ export function HitCoin(X, Y, ThrowUp) {
   }
   Beep(2420);
   const d = B.Data;
-  d.Coins[B.Player]++;
+  d.Coins[dataSlot()]++;
   AddScore(50);
-  if (d.Coins[B.Player] % 100 === 0) {
+  if (d.Coins[dataSlot()] % 100 === 0) {
     AddLife();
-    d.Coins[B.Player] = 0;
+    d.Coins[dataSlot()] = 0;
   }
 }
 
 export function AddLife() {
-  B.Data.Lives[B.Player]++;
+  B.Data.Lives[dataSlot()]++;
   StartMusic(LifeMusic);
 }
