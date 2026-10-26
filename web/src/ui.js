@@ -193,7 +193,7 @@ const pads = {};
 const itemEl = (it) => pads[it.pad][it.type];
 const padOn = (n) => n === 1 || settings.touch.p2;
 
-const pointers = new Map(); // pointerId -> { kind, pad, actions: Set }
+const pointers = new Map(); // pointerId -> { kind, pad, actions: Set, holdB }
 
 function rectOf(el, grow = 0) {
   const r = el.getBoundingClientRect();
@@ -238,6 +238,14 @@ function updatePointer(id, p) {
   const st = pointers.get(id);
   if (!st) return;
   const next = st.kind === 'dpad' ? dpadActions(p, st.pad) : buttonActions(p, st.pad);
+  // Sliding from B onto A keeps B held (run + jump) until the finger lifts
+  if (st.kind !== 'dpad') {
+    if (st.actions.has(act(st.pad, 'run')) && next.has(act(st.pad, 'jump'))) st.holdB = true;
+    if (st.holdB) {
+      next.add(act(st.pad, 'run'));
+      next.add(act(st.pad, 'fire'));
+    }
+  }
   const src = `touch${id}`;
   for (const a of st.actions) if (!next.has(a)) KB.setAction(a, src, false);
   for (const a of next) if (!st.actions.has(a)) KB.setAction(a, src, true);
